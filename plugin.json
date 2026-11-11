@@ -1,11 +1,18 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "agent-skills",
-  "version": "0.6.15",
-  "description": "Production-grade engineering skills for AI coding agents covering the full software development lifecycle from spec to ship.",
-  "author": { "name": "Addy Osmani", "url": "https://github.com/addyosmani" },
-  "homepage": "https://skills.addy.ie",
-  "repository": "https://github.com/addyosmani/agent-skills",
-  "license": "MIT",
-  "keywords": ["skills", "engineering", "spec", "tdd", "review", "ship"]
+  "name": "agy-harness",
+  "displayName": "AGY Harness",
+  "version": "0.1.0",
+  "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity, bundling 25 upstream lifecycle skills, /agy-harness:harness-init, Software 1.0 gates, and 5 physically isolated subagents.",
+  "logo": "assets/logo.svg",
+  "author": {
+    "name": "JsonLee12138",
+    "url": "https://github.com/JsonLee12138"
+  },
+  "homepage": "https://github.com/JsonLee12138/agy-harness",
+  "repository": "https://github.com/JsonLee12138/agy-harness",
+  "suggestedPrompts": [
+    "Run /agy-harness:harness-init to register project rules, gate-check.sh, and .artifacts contracts",
+    "Plan and implement a Tier M feature using repo-scout, slice-builder, and staff-gatekeeper",
+    "Stress-test SPEC.md and PLAN.md with arch-redteam before starting Tier L/XL implementation"
+  ]
 }

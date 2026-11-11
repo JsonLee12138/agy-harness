@@ -1,130 +1,116 @@
-# Using agent-skills with Antigravity CLI (agy)
+# Using `agy-harness` with Google Antigravity (`agy` CLI, IDE & App 2.0)
 
-The `agent-skills` package can be installed as a native plugin in the Antigravity CLI (`agy`), giving the agent access to structured workflows and personas.
+`agy-harness` upgrades the 25 upstream `addyosmani/agent-skills` workflows (with **zero lines modified** in upstream `SKILL.md` files) into a budget-governed **Generate-and-Falsify Engineering Harness** for Google Antigravity (`agy` CLI v1.4+, Antigravity IDE, and Antigravity 2.0).
 
-## Setup
+Instead of manually invoking skills one by one—or letting a single polluted context review its own code—`agy-harness` enforces:
+1. **Disk SSoT Contracts (`.artifacts/`)**: `context-brief.md`, `SPEC.md`, `CONSTRAINTS.md`, and `PLAN.md`.
+2. **Software 1.0 Zero-Token Hard Gate (`scripts/gate-check.sh`)**: Diff-size check, typecheck/lint, deterministic tests, and secret/`debugger;` scan before spending review tokens.
+3. **Dual-Layer Rules + `/agy-harness:harness-init` Skill**: Replaces the deprecated UI `mainAgent` switcher by registering `.agents/rules/agy-harness.md` per repository, leaving uninitialized workspaces untouched.
+4. **5 Physically Isolated Subagents (`agents/*.md`)**: Hardware-enforced read-only tool allowlists and heterogeneous `flash` / `inherit` / `pro` model tiering.
 
-### Option 1: Native Plugin Installation (Recommended)
+---
 
-Antigravity CLI has a first-class [plugin system](https://www.agy.dev/docs/plugins/) that registers skills and agents. The repository also carries legacy command TOMLs, but affected `agy` releases do not expose their converted wrappers; see [Lifecycle Workflows and Command Compatibility](#lifecycle-workflows-and-command-compatibility).
+## 1. Installation & Avoiding Duplicate Catalog Tax
 
-**Install from the remote repository:**
+### Step 1: Install `agy-harness`
 
 ```bash
-agy plugin install https://github.com/addyosmani/agent-skills.git
+# From remote repository:
+agy plugin install https://github.com/JsonLee12138/agy-harness.git
+
+# Or from local checkout:
+agy plugin install /path/to/agy-harness
 ```
 
-**Install from a local clone:**
+### Step 2: Disable Standalone `agent-skills` (Important)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/addyosmani/agent-skills.git
-   ```
-2. Install the plugin using `agy`:
-   ```bash
-   agy plugin install /path/to/agent-skills
-   ```
+Because `agy-harness` already bundles all 25 unmodified upstream skills plus `harness-init` under the `agy-harness:*` namespace, keeping both `agent-skills` and `agy-harness` enabled duplicates 25 skill descriptions in every turn's progressive-disclosure catalog (~2.5K wasted prefix tokens per turn).
 
-This will validate the plugin and install it into your global Antigravity configuration directory (`~/.gemini/config/plugins/agent-skills/`).
-
-> **Note:** on current agy releases the plugin lands under `~/.gemini/config/plugins/`, not the legacy `~/.gemini/antigravity-cli/plugins/` path used by older versions. If you don't see the plugin at the legacy path, check `~/.gemini/config/plugins/agent-skills/` first.
-
-### Option 2: Import from Gemini CLI
-
-If you have already installed `agent-skills` under your legacy Gemini CLI installation, you can import it directly:
 ```bash
-agy plugin import gemini
-```
-
-Once installed, verify the active plugin:
-```bash
+agy plugin disable agent-skills
 agy plugin list
 ```
 
 ---
 
-## Lifecycle Workflows and Command Compatibility
+## 2. Initializing a Target Project (`/agy-harness:harness-init`)
 
-Antigravity's [migration tooling](https://www.agy.dev/docs/cli/gcli-migration/) reports the 9 legacy definitions in `commands/*.toml` as "converted to skills." In affected `agy` 1.1.x releases, validation succeeds but the converted wrappers do not appear in the slash-command or skill catalog. A successful `agy plugin validate` therefore confirms the files are well formed, not that `/build` and the other short wrappers are available. This is tracked in [agent-skills #445](https://github.com/addyosmani/agent-skills/issues/445) and upstream in [antigravity-cli #788](https://github.com/google-antigravity/antigravity-cli/issues/788).
+Open any target project in Antigravity IDE, Antigravity 2.0, or `agy` CLI and run:
 
-Use the native plugin skills directly while that importer limitation applies:
-
-| Intended wrapper | Direct Antigravity invocation | Notes |
-|------------------|-------------------------------|-------|
-| `/spec` | `/agent-skills:spec-driven-development` | Writes a structured spec before code |
-| `/constraints` | `/agent-skills:constraint-driven-development` | Defines and enforces the project's quality bar |
-| `/planning` | `/agent-skills:planning-and-task-breakdown` | Antigravity's built-in `/planning` command is a separate plan-mode control |
-| `/build` | `/agent-skills:incremental-implementation` | Also invoke `/agent-skills:test-driven-development`; wrapper-only `/build auto` orchestration is unavailable |
-| `/test` | `/agent-skills:test-driven-development` | Runs the red-green-refactor workflow |
-| `/review` | `/agent-skills:code-review-and-quality` | Runs the five-axis review workflow |
-| `/code-simplify` | `/agent-skills:code-simplification` | Simplifies without changing behavior |
-| `/ship` | `/agent-skills:shipping-and-launch` | The wrapper's automatic persona fan-out is unavailable; invoke specialist agents separately |
-| `/webperf` | Select `web-performance-auditor` from `/agents` | This workflow is a persona, not a skill |
-
-Do not add YAML frontmatter to the TOML files as a workaround. Gemini CLI reads the parallel TOML command format with a strict parser, and `---` frontmatter makes those files invalid TOML without changing Antigravity's conversion behavior.
-
----
-
-## Skills & Discovery
-
-Antigravity automatically discovers skills inside the plugin's `skills/` directory. 
-* Antigravity matches user tasks and intents to relevant skills on-demand.
-* If a task matches a skill, the agent will load the skill and prompt you for permission before executing.
-
----
-
-## Verification & Validation
-
-To validate that your local plugin is correctly structured and contains all skills, run:
-```bash
-agy plugin validate /path/to/agent-skills
+```text
+/agy-harness:harness-init
 ```
 
-Then start a fresh session and type `/agent-skills:` to inspect the namespaced skill catalog. If the validator reports that commands were converted but `/build` returns `No matches`, use the direct invocations above; reinstalling or adding a TOML `name` field does not resolve the known importer limitation.
-
----
-
-## How It Works
-
-### 1. On-Demand Skill Activation
-Antigravity CLI automatically discovers the `SKILL.md` files located in the `skills/` directory of the installed plugin. Using the trigger descriptions in each skill's frontmatter, the agent will dynamically activate the appropriate workflow when it detects matching developer intent.
-
-For example, when you ask the agent to:
-- **Design a new system** &rarr; It will suggest/activate `spec-driven-development`.
-- **Implement a feature** &rarr; It will activate `incremental-implementation` and `test-driven-development`.
-- **Fix a bug** &rarr; It will activate `debugging-and-error-recovery`.
-
-### 2. Specialized Agent Personas
-The plugin registers reusable subagent definitions from the `agents/` directory:
-- `code-reviewer.md`
-- `security-auditor.md`
-- `test-engineer.md`
-
-You can invoke these personas directly within your session or when delegating tasks using subagents.
-
----
-
-## Configuration & Customization
-
-### Project-Specific Enforcements (`AGENTS.md`)
-To enforce strict skill compliance (e.g. requiring a spec or plan before writing code), create a project-specific `AGENTS.md` in the root of your workspace. Describe your project's conventions, test commands, and required skill workflows there.
-
-This repository's root `AGENTS.md` and `CLAUDE.md` configure agents contributing to Agent Skills itself. Do not copy or link them into your project or global agent configuration; the reusable assets are the skills in `skills/`. See [Repo-scoped files](../CONTRIBUTING.md#repo-scoped-files).
-
-### Sandbox Mode
-If you want to run skills or scripts with limited terminal permissions (for safety when running third-party validation tests), launch the CLI with:
+Or run the deterministic bootstrap script directly:
 
 ```bash
-agy --sandbox
+# Recommended when agy-harness plugin is installed globally:
+bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-project
+
+# Standalone mode (also copies the 5 subagents into <your-project>/.agents/agents/):
+bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
+
+This creates:
+- `.agents/rules/agy-harness.md` — Workspace Coordinator Rule governing Tier S/M/L/XL routing and native `Proceed` (`RequestFeedback: true`) confirmation gates.
+- `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 `PreToolUse` lock that physically blocks `slice-builder` and `swarm` whenever `.artifacts/SPEC.md` or `.artifacts/PLAN.md` is created or substantively modified without user confirmation in a subsequent turn (while allowing checkbox/status updates between slices).
+- `scripts/gate-check.sh` — Software 1.0 zero-token pre-review gate.
+- `.artifacts/{context-brief.md,SPEC.md,CONSTRAINTS.md,PLAN.md}` — Local Disk SSoT contract templates, automatically added to `.gitignore` (plus `.artifacts/.gitignore`) so per-task specs and plans stay local and never pollute Git history or `gate-check.sh` diff counts.
 
 ---
 
-## Usage Tips
+## 3. Tier S / M / L / XL Budget Routing, Human `Proceed` Gates & Subagent Matrix
 
-1. **Keep plugins up-to-date:** You can update the CLI or check for newer plugin versions using:
-   ```bash
-   agy update
-   ```
-2. **Review before execution:** When agents execute complex refactoring tasks using these skills, use `Ctrl+r` to enter the **Artifact Review** screen to review, edit, or approve code before it is committed.
-3. **Control permissions:** You can use the `--dangerously-skip-permissions` flag only in trusted local projects where you want to bypass manual tool approval prompts.
+### Dual-Mirror Human Confirmation Protocol (Anti-Runaway Guarantee)
+
+Because workspace files cannot carry `ArtifactMetadata`, the main session mirrors every contract checkpoint to `<ArtifactDir>/harness_plan.md` with `ArtifactMetadata: { UserFacing: true, RequestFeedback: true }` and stops its turn so Antigravity renders the native **`Proceed`** button:
+- **Tier M**: **1 `Proceed` click** (unified review of `SPEC.md + CONSTRAINTS.md + PLAN.md` before coding).
+- **Tier L / Tier XL**: **2 `Proceed` clicks** (Gate 1 approves `SPEC.md` scope/boundaries first; Gate 2 approves `PLAN.md` after `arch-redteam` pre-mortem convergence).
+- **Every-Edit Re-Confirmation (Enforced by `.agents/hooks.json`)**: Any substantive edit to `.artifacts/SPEC.md` or `.artifacts/PLAN.md` at any stage immediately re-locks `slice-builder` and `swarm` until the user clicks `Proceed` (or confirms) in the next turn.
+
+### Task Budget Tiers
+
+| Tier | Trigger Scope | Pipeline & Human `Proceed` Checkpoints | Est. Cost Multiplier |
+|------|---------------|----------------------------------------|----------------------|
+| **Tier S** | Single-file bugfix, copy/style tweak, `< 50` deterministic lines | Main session runs `debugging` / `TDD` -> `scripts/gate-check.sh` -> Done (0 contract prompts, 0 review subagents) | **1.0x** |
+| **Tier M** | Standard feature or refactor across 2-6 files | `repo-scout` -> `.artifacts/` contracts -> **`Proceed` #1 (SPEC+PLAN)** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` | **1.8x** |
+| **Tier L** | Core architecture, public API change, auth/payment/critical path | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> `PLAN` + `arch-redteam` -> **`Proceed` #2** -> `slice-builder` -> `gate-check.sh` -> parallel `staff-gatekeeper` & `risk-specialist` | **2.6x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint file subtrees | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> subtree `PLAN` + `arch-redteam` -> **`Proceed` #2** -> parallel `slice-builder` (`Workspace: "share"`) or Native `Swarm` (`workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.2x-3.2x** |
+
+### Subagent & Model Matrix
+
+| Subagent (`agents/*.md`) | YAML `model` Tier | Recommended Model Mapping | Mounted `agy-harness:*` Skills | Permission Policy |
+|--------------------------|-------------------|---------------------------|--------------------------------|-------------------|
+| [`repo-scout`](../agents/repo-scout.md) | `flash` | Gemini 3.8 Flash (Low/Med) | `context-engineering`, `source-driven-development` | **Read-only** (`commandExecutionPolicy: off`) |
+| [`arch-redteam`](../agents/arch-redteam.md) | `pro` | Gemini 4 Argon (High) / Claude Thinking | `doubt-driven-development`, `api-and-interface-design` | **Read-only** (`commandExecutionPolicy: off`) |
+| [`slice-builder`](../agents/slice-builder.md) | `inherit` | Gemini 4 Carbon (Medium) | `incremental-implementation`, `test-driven-development`, `debugging-and-error-recovery`, `frontend-ui-engineering` | Read + Write + `sandbox` |
+| [`staff-gatekeeper`](../agents/staff-gatekeeper.md) | `pro` | Gemini 4 Argon (Med/High) | `code-review-and-quality`, `code-simplification`, `test-driven-development` | **Read-only** + `sandbox` (`git diff`) |
+| [`risk-specialist`](../agents/risk-specialist.md) | `pro` | Gemini 4 Argon (High) | `security-and-hardening`, `performance-optimization`, `browser-testing-with-devtools` | **Read-only** + `sandbox` |
+
+### Subagent 5-Second Local Command Guardrail & `[HOST_CMD_REQUEST]` Delegation
+
+To prevent sandboxed subagents (`slice-builder`, `staff-gatekeeper`, `risk-specialist`) from deadlocking on Docker sockets, network fetches, interactive prompts, or long-running processes:
+- **5-Second Local Short-Command Boundary**: Subagents may only run deterministic, offline, non-interactive workspace checks expected to exit in `<= 5s` (`WaitMsBeforeAsync <= 5000`, `IsDaemon: false`; hard cap `10s`), while `scripts/gate-check.sh` exports `CI=true GIT_PAGER=cat`, passes `git --no-pager diff`, and redirects `< /dev/null`.
+- **Zero-Exception Subagent Blacklist**: Containers/virtualization (`docker`, `docker compose`, `podman`, `kubectl`, `testcontainers`), dependency installs (`npm/pnpm/yarn/bun/pip/uv/cargo/go/flutter/pod`), daemons/watchers/interactive flags (`IsDaemon: true`, `--watch`, `tail -f`, `-it`), and slow (`> 10s`) builds or E2E suites are strictly forbidden inside subagents.
+- **`[HOST_CMD_REQUEST]` ↔ `send_message` In-Place Resume**: After finishing local edits and fast checks, the subagent batches any required heavy/container commands into a structured `## [HOST_CMD_REQUEST]` block (including the explicit absolute `cwd`, supporting Tier XL `Workspace: "share"` worktrees) and ends its turn. The top-level main session executes the command non-interactively on the host, trims output to exit code + `<= 50` key lines, and calls `send_message(Recipient: "<conversationId>")` to resume the **same** subagent in-place (`<= 2` retry rounds; `slice-builder` reports `DELEGATED_TO_HOST` upon pass).
+
+---
+
+## 4. Validation & Golden Eval (30-Minute A/B Repro)
+
+### Plugin Structural Validation
+
+```bash
+agy plugin validate /path/to/agy-harness
+agy --add-dir /path/to/agy-harness agents
+```
+
+### 30-Minute Historical PR A/B Eval
+
+1. Pick a medium-complexity historical PR that previously leaked an edge-case bug, and check out its parent commit in two `git worktree` directories.
+2. **Control Group A**: Manually invoke spec, implementation, and review skills in a single main conversation.
+3. **Experiment Group B**: Run `/agy-harness:harness-init` and execute the task through the automatic Tier M/L pipeline.
+4. Measure three objective metrics:
+   - **Pre-code defect interception**: Did `arch-redteam` surface the interface/state edge case before code was written?
+   - **Software 1.0 gate saves**: How many compile/lint/test failures did `scripts/gate-check.sh` catch at 0 review tokens?
+   - **End-to-end token multiplier vs. human rework rounds**: Verify token overhead stays `< 1.8x-2.6x` while manual `Ctrl+R` rework drops to `0-1` rounds.

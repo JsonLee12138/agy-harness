@@ -25,6 +25,9 @@ jobs:
       - name: Test skill lint rules
         run: node --test scripts/lib/skill-lint-test.js
 
+      - name: Test AGY Harness contracts and scripts
+        run: node --test scripts/harness-test.js
+
       - name: Validate manifest versions
         run: node scripts/validate-versions.js
 
@@ -99,6 +102,7 @@ jobs:
       - name: Test validators and eval runner
         run: >-
           node --test
+          scripts/harness-test.js
           scripts/lib/skill-lint-test.js
           scripts/validate-versions-test.js
           scripts/run-evals-test.js
@@ -171,4 +175,4 @@ jobs:
         run: claude plugin marketplace list
 
       - name: Install plugin
-        run: claude plugin install agent-skills@addy-agent-skills --scope user
+        run: claude plugin install agy-harness@agy-harness --scope user

@@ -1,12 +1,42 @@
-# Agent Skills
+<p align="center">
+  <img src="assets/logo.svg" width="128" height="128" alt="AGY Harness Logo" />
+</p>
 
-**Production-grade engineering skills for AI coding agents.**
+<h1 align="center">AGY Harness</h1>
 
-Skills encode the workflows, quality gates, and best practices that senior engineers use when building software. These ones are packaged so AI agents follow them consistently across every phase of development.
+<p align="center">
+  <b>English</b> | <a href="README.zh.md">简体中文</a>
+</p>
 
-<a href="https://trendshift.io/repositories/25200" target="_blank"><img src="https://trendshift.io/api/badge/repositories/25200" alt="addyosmani%2Fagent-skills | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<p align="center">
+  <a href="https://github.com/JsonLee12138/agy-harness/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-blue.svg" alt="Release v0.1.0" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/JsonLee12138/agy-harness"><img src="https://img.shields.io/badge/Google%20Antigravity-ready-8A2BE2.svg" alt="Google Antigravity" /></a>
+  <a href="https://github.com/JsonLee12138/agy-harness"><img src="https://img.shields.io/badge/Claude%20Code-compatible-orange.svg" alt="Claude Code" /></a>
+  <a href="https://github.com/JsonLee12138/agy-harness"><img src="https://img.shields.io/badge/Codex-ready-000000.svg" alt="Codex" /></a>
+</p>
 
-![Addy's Agent Skills](https://addyosmani.com/assets/images/addys-agent-skills.jpg)
+**Budget-governed Generate-and-Falsify Engineering Harness for Google Antigravity (`agy`), Claude Code, Codex, and modern AI coding agents.**
+
+Powered by 25 zero-modification upstream [Addy Osmani Agent Skills](https://github.com/addyosmani/agent-skills) plus `/agy-harness:harness-init`.
+
+> [!IMPORTANT]
+> **Independent Versioning Notice**: `agy-harness` starts its release versioning at **`v0.1.0`**. It intentionally does not inherit upstream `agent-skills` 0.6.x versions, establishing its own release cadence for the Antigravity harness architecture, gates, and subagents.
+
+---
+
+## What is AGY Harness?
+
+Default AI coding agents take the path of least resistance: single-turn execution, skipping specs, omitting tests, and having the same polluted context review its own hallucinations.
+
+`agy-harness` transforms agent interactions into a deterministic **Disk SSoT (`.artifacts/`) + Software 1.0 Gate (`scripts/gate-check.sh`) + Physically Isolated Fresh-Context Subagent** state machine:
+
+- **One-step workspace bootstrap (`/agy-harness:harness-init`)**: Registers `.agents/rules/agy-harness.md` (replacing the deprecated UI `mainAgent` switcher), `.agents/hooks.json` + `scripts/harness-approval-gate.sh` (Software 1.0 `PreToolUse` contract approval lock), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`.
+- **Native `Proceed` human confirmation gates**: Tier M pauses once (`SPEC + PLAN`), Tier L/XL pauses twice (`SPEC` first, then `arch-redteam`-converged `PLAN`), and every substantive edit to `SPEC.md` or `PLAN.md` physically requires re-confirmation before `slice-builder` or `swarm` can run.
+- **Self-contained `agy-harness:*` namespace**: Ships all 25 upstream skills untouched (ready for seamless upstream `git merge`) plus `harness-init`. Disable standalone `agent-skills` after installing to avoid duplicate skill-catalog token overhead.
+- **Software 1.0 zero-token gates (`scripts/gate-check.sh`)**: Enforces diff size limits (< 400 lines), typecheck/lint, deterministic tests, and secret / `debugger;` scans before waking costly `pro` review subagents.
+- **5 physically isolated subagents**: Read-only hardware separation for fact probes and review, routing tasks across heterogeneous model tiers (`flash` / `inherit` / `pro`).
+- **Tier S / M / L / XL budget routing**: Scales from zero-subagent Tier S fixes up to Tier XL parallel worktree sharding (`Workspace: "share"` / Native `Swarm`).
 
 ```
   DEFINE          PLAN           BUILD          VERIFY         REVIEW          SHIP
@@ -17,162 +47,55 @@ Skills encode the workflows, quality gates, and best practices that senior engin
   /spec          /plan          /build        /test         /review       /ship
 ```
 
----
-
-## Commands
-
-9 slash commands that map to the development lifecycle. Each one activates the right skills automatically.
-
-| What you're doing | Command | Key principle |
-|-------------------|---------|---------------|
-| Define what to build | `/spec` | Spec before code |
-| Plan how to build it | `/plan` | Small, atomic tasks |
-| Build incrementally | `/build` | One slice at a time |
-| Prove it works | `/test` | Tests are proof |
-| Set the quality bar | `/constraints` | Decide it once, enforce it everywhere |
-| Review before merge | `/review` | Improve code health |
-| Audit web performance | `/webperf` | Measure before you optimize |
-| Simplify the code | `/code-simplify` | Clarity over cleverness |
-| Ship to production | `/ship` | Faster is safer |
-
-In Claude Code these install as plugin commands. Where a built-in command has the same name, as `/review` does, use the namespaced form: `/agent-skills:review`.
-
-Want fewer manual steps once the spec exists? **`/build auto`** generates the plan and implements every task in a single approved pass — you approve the plan once, then it runs autonomously. It removes the human stepping *between* tasks, not the verification: every task is still test-driven and committed individually, and it pauses on failures or risky steps.
-
-Skills also activate automatically based on what you're doing — designing an API triggers `api-and-interface-design`, building UI triggers `frontend-ui-engineering`, and so on.
+For complete architectural details and golden evaluation instructions, see **[docs/antigravity-setup.md](docs/antigravity-setup.md)**.
 
 ---
 
 ## Quick Start
 
-**Fastest path — any agent, one command.** The open [skills CLI](https://github.com/vercel-labs/skills) installs into 70+ agents (Claude Code, Cursor, Codex, Copilot, Cline, and more):
+### 1. Install `agy-harness`
+
+<details open>
+<summary><b>Google Antigravity (CLI, IDE & 2.0) — Primary Host</b></summary>
+
+Install directly from the remote repository:
 
 ```bash
-npx skills add addyosmani/agent-skills            # install all 25 skills
-npx skills add addyosmani/agent-skills --list     # browse before installing
+agy plugin install https://github.com/JsonLee12138/agy-harness.git
 ```
 
-Or grab individual skills:
+Or install from a local clone:
 
 ```bash
-npx skills add addyosmani/agent-skills --skill code-review-and-quality   # five-axis review before merge
-npx skills add addyosmani/agent-skills --skill interview-me              # requirements interrogation, one question at a time
-npx skills add addyosmani/agent-skills --skill test-driven-development   # red-green-refactor, enforced
+git clone https://github.com/JsonLee12138/agy-harness.git
+agy plugin install ./agy-harness
 ```
 
-> **Installing one skill?** A per-skill `npx` install copies only
-> `skills/<name>/`, not the repo-level `references/` directory. The skill still
-> works, but paths to supplementary shared checklists are unavailable. Use a
-> whole-repo integration, clone the repository, or copy the needed checklist into
-> a `references/` directory inside the installed skill. This portability gap is
-> tracked in [#361](https://github.com/addyosmani/agent-skills/issues/361).
+> [!TIP]
+> **Disable Standalone `agent-skills`**: Because `agy-harness` bundles all 25 upstream skills under the `agy-harness:*` namespace, disable standalone `agent-skills` if previously installed to avoid duplicate token overhead:
+> ```bash
+> agy plugin disable agent-skills
+> ```
 
-Prefer a native integration? Pick your tool below.
+</details>
 
 <details>
-<summary><b>Claude Code (recommended)</b></summary>
+<summary><b>Claude Code</b></summary>
 
 **Marketplace install:**
 
+```bash
+/plugin marketplace add JsonLee12138/agy-harness
+/plugin install agy-harness@agy-harness
 ```
-/plugin marketplace add addyosmani/agent-skills
-/plugin install agent-skills@addy-agent-skills
-```
-
-> **SSH errors?** The marketplace clones repos via SSH. If you don't have SSH keys set up on GitHub, either [add your SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account) or use the full HTTPS URL to force HTTPS cloning during the marketplace-add step:
-> ```bash
-> /plugin marketplace add https://github.com/addyosmani/agent-skills.git
-> /plugin install agent-skills@addy-agent-skills
-> ```
->
-> If `/plugin install` still fails with `git@github.com: Permission denied (publickey)` on Windows or macOS, the recommended workaround is to configure Git once to rewrite GitHub SSH URLs to HTTPS for subprocess clones:
-> ```bash
-> git config --global url."https://github.com/".insteadOf git@github.com:
-> ```
 
 **Local / development:**
 
 ```bash
-git clone https://github.com/addyosmani/agent-skills.git
-claude --plugin-dir /path/to/agent-skills
+git clone https://github.com/JsonLee12138/agy-harness.git
+claude --plugin-dir /path/to/agy-harness
 ```
 
-</details>
-
-<details>
-<summary><b>Cursor</b></summary>
-
-Put workflow skills under `.cursor/skills/` (sync from `agent-skills/skills/`) and short policies in `.cursor/rules/*.mdc` — do not paste full skills into rules. Both directories live in your project; this repo does not ship a `.cursor/` folder. See [docs/cursor-setup.md](docs/cursor-setup.md).
-
-</details>
-
-<details>
-<summary><b>Antigravity CLI</b></summary>
-
-Install as a native plugin for skills and subagents. In affected Antigravity CLI releases, legacy command TOMLs are reported as converted but their wrapper commands are not discoverable; invoke the underlying namespaced skills directly. See [docs/antigravity-setup.md](docs/antigravity-setup.md#lifecycle-workflows-and-command-compatibility).
-
-**Install from the repo:**
-
-```bash
-agy plugin install https://github.com/addyosmani/agent-skills.git
-```
-
-**Install from a local clone:**
-
-```bash
-git clone https://github.com/addyosmani/agent-skills.git
-agy plugin install ./agent-skills
-```
-
-</details>
-
-<details>
-<summary><b>Gemini CLI</b></summary>
-
-Install as native skills for auto-discovery, or add to `GEMINI.md` for persistent context. See [docs/gemini-cli-setup.md](docs/gemini-cli-setup.md).
-
-**Install from the repo:**
-
-```bash
-gemini skills install https://github.com/addyosmani/agent-skills.git --path skills
-```
-
-**Install from a local clone:**
-
-```bash
-gemini skills install ./agent-skills/skills/
-```
-
-</details>
-
-<details>
-<summary><b>Windsurf</b></summary>
-
-Add skill contents to your Windsurf rules configuration. See [docs/windsurf-setup.md](docs/windsurf-setup.md).
-
-</details>
-
-<details>
-<summary><b>OpenCode</b></summary>
-
-Copy skills to `.opencode/skills/` (or `~/.config/opencode/skills/`), add a project-local `AGENTS.md`, and use the built-in `skill` tool for agent-driven execution. Optional slash commands can be added under `.opencode/commands/`.
-
-See [docs/opencode-setup.md](docs/opencode-setup.md).
-
-</details>
-
-<details>
-<summary><b>GitHub Copilot</b></summary>
-
-Use agent definitions from `agents/` as Copilot personas and skill content in `.github/copilot-instructions.md`. The lifecycle slash commands (`/spec`, `/plan`, `/build`, `/test`, `/review`, `/ship`) are Claude Code commands and do not appear in Copilot; invoke the skills by name (`/spec-driven-development`, …) instead. See [docs/copilot-setup.md](docs/copilot-setup.md).
-
-Using the standalone `copilot` CLI? Install it as a plugin — see [docs/copilot-cli-setup.md](docs/copilot-cli-setup.md).
-
-</details>
-
-<details>
-  <summary><b>Kiro IDE & CLI </b></summary>
-  Skills for Kiro reside under ".kiro/skills/" and can be stored under Project or Global level. Kiro also supports Agents.md. See Kiro docs at https://kiro.dev/docs/skills/
 </details>
 
 <details>
@@ -181,230 +104,187 @@ Using the standalone `copilot` CLI? Install it as a plugin — see [docs/copilot
 Install as a native Codex plugin (Codex CLI v0.122+):
 
 ```bash
-codex plugin marketplace add addyosmani/agent-skills
-codex plugin add agent-skills@agent-skills
+codex plugin marketplace add JsonLee12138/agy-harness
+codex plugin add agy-harness@agy-harness
 ```
 
-The first command registers the marketplace; the second installs the plugin. Codex reads the root `skills/` directory directly through `.codex-plugin/plugin.json`. Once installed, invoke skills in chat using `@` (e.g., `@spec-driven-development`). See [docs/codex-setup.md](docs/codex-setup.md) for local installation and troubleshooting.
+Codex reads the `skills/` directory directly through `.codex-plugin/plugin.json`. Invoke skills in chat using `@` (e.g. `@spec-driven-development`).
 
 </details>
 
 <details>
-<summary><b>Command Code</b></summary>
+<summary><b>Skills CLI (Universal Installer for 70+ Agents)</b></summary>
 
-Install natively with the built-in `cmd skills` command. Command Code clones the repo, discovers every `SKILL.md`, and installs into `.commandcode/skills/`:
+Using the open [skills CLI](https://github.com/vercel-labs/skills):
 
 ```bash
-cmd skills add addyosmani/agent-skills            # pick skills to install (project)
-cmd skills add addyosmani/agent-skills --global   # install for all projects (~/.commandcode/skills/)
-cmd skills add addyosmani/agent-skills -s spec-driven-development  # install a specific skill
+npx skills add JsonLee12138/agy-harness            # install all skills
+npx skills add JsonLee12138/agy-harness --list     # browse before installing
 ```
-
-Installed skills show up in the TUI slash menu, e.g. `/spec-driven-development`. See [docs/commandcode-setup.md](docs/commandcode-setup.md).
 
 </details>
 
 <details>
-<summary><b>Other Agents</b></summary>
+<summary><b>Cursor, Windsurf & Other Environments</b></summary>
 
-Skills are plain Markdown - they work with any agent that accepts system prompts or instruction files. See [docs/getting-started.md](docs/getting-started.md). Hosts that install the pack but aren't listed above are in [docs/other-hosts.md](docs/other-hosts.md).
+- **Cursor**: Place workflow skills under `.cursor/skills/` (sync from `skills/`). See [docs/cursor-setup.md](docs/cursor-setup.md).
+- **Windsurf**: Add skills to your rules configuration. See [docs/windsurf-setup.md](docs/windsurf-setup.md).
+- **Gemini CLI**: Run `gemini skills install https://github.com/JsonLee12138/agy-harness.git --path skills`. See [docs/gemini-cli-setup.md](docs/gemini-cli-setup.md).
+- **OpenCode**: Copy skills to `.opencode/skills/`. See [docs/opencode-setup.md](docs/opencode-setup.md).
+- **GitHub Copilot**: Use subagent definitions in `.github/agents/`. See [docs/copilot-setup.md](docs/copilot-setup.md).
 
 </details>
 
+---
 
+### 2. Initialize Any Target Repository
+
+In your target project, trigger the initialization skill in chat:
+
+```text
+/agy-harness:harness-init
+```
+
+Or run the initialization script directly from terminal:
+
+```bash
+# Using installed plugin:
+bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-project
+
+# Or with local subagents:
+bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
+```
+
+This sets up:
+1. `.agents/rules/agy-harness.md` — Workspace coordinator rule with Tier S/M/L/XL routing and human approval gates.
+2. `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 approval lock before code execution.
+3. `scripts/gate-check.sh` — Zero-token pre-commit quality gate.
+4. `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md` — Local gitignored contract templates.
 
 ---
 
-## Adoption
+## Tier S / M / L / XL Budget Routing
 
-Already installed? How you roll the pack out depends on your codebase. The **[Adoption Guide](docs/adoption-guide.md)** covers two paths: the full lifecycle from day one for a greenfield project, or an incremental, verification-first rollout for an established codebase.
+`agy-harness` routes every task to the optimal balance between token expenditure and verification rigor:
+
+| Tier | Scope | Pipeline & Human Checkpoints | Cost Multiplier |
+|------|-------|------------------------------|-----------------|
+| **Tier S** | Single-file bugfix, copy/style tweak, < 50 lines | Main session TDD -> `gate-check.sh` -> Done (0 subagents) | **1.0x** |
+| **Tier M** | Standard feature or refactor (2-6 files) | `repo-scout` -> `.artifacts/` contracts -> **`Proceed` #1** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` | **1.8x** |
+| **Tier L** | Architecture change, public API, auth/payment | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> `PLAN` + `arch-redteam` -> **`Proceed` #2** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` + `risk-specialist` | **2.6x** |
+| **Tier XL** | >= 3 orthogonal modules with disjoint trees | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> Subtree `PLAN` + `arch-redteam` -> **`Proceed` #2** -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.2x - 3.2x** |
 
 ---
 
-## All 25 Skills
+## Harness Subagents
 
-The commands above are entry points. The pack includes 25 skills total — 24 lifecycle skills plus the `using-agent-skills` meta-skill. Each skill is a structured workflow with steps, verification gates, and anti-rationalization tables. You can also reference any skill directly.
+Five physically isolated subagents orchestrated by `.agents/rules/agy-harness.md`:
 
-### Meta - Discover which skill applies
+| Subagent | Model Tier | Tools & Isolation | Role |
+|----------|------------|-------------------|------|
+| [repo-scout](agents/repo-scout.md) | `flash` | Read-only (`off`) | Fast codebase and official-doc fact probe producing concise (`<= 2K` tokens) Context Briefs |
+| [arch-redteam](agents/arch-redteam.md) | `pro` | Read-only (`off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails |
+| [slice-builder](agents/slice-builder.md) | `inherit` | Read + Write (`sandbox`) | Vertical-slice TDD builder; verifies `scripts/gate-check.sh` before handoff; supports worktree sharding |
+| [staff-gatekeeper](agents/staff-gatekeeper.md) | `pro` | Read-only (`sandbox`) | 3-in-1 unified post-gate reviewer: five-axis quality, complexity pruning, and anti-fake-test check |
+| [risk-specialist](agents/risk-specialist.md) | `pro` | Read-only (`sandbox`) | Conditional deep auditor for auth, external input, high-traffic paths, and performance hotspots |
+
+> Legacy single-axis personas are safely preserved in [docs/legacy-personas/](docs/legacy-personas/).
+
+---
+
+## All 26 Skills
+
+The pack bundles 26 skills total: 25 upstream engineering skills plus `harness-init`.
+
+### Meta & Harness Bootstrap
 
 | Skill | What It Does | Use When |
 |-------|-------------|----------|
+| [harness-init](skills/harness-init/SKILL.md) | Bootstraps `.agents/rules/agy-harness.md`, `.agents/hooks.json`, `scripts/gate-check.sh`, and `.artifacts/` templates | Initializing `agy-harness` in a repository (`/agy-harness:harness-init`) |
 | [using-agent-skills](skills/using-agent-skills/SKILL.md) | Maps incoming work to the right skill workflow and defines shared operating rules | Starting a session or deciding which skill applies |
 
-### Define - Clarify what to build
+### Define — Clarify What to Build
 
 | Skill | What It Does | Use When |
 |-------|-------------|----------|
-| [interview-me](skills/interview-me/SKILL.md) | One-question-at-a-time interview that extracts what the user actually wants instead of what they think they should want, until ~95% confidence | The ask is underspecified, or the user invokes "interview me" / "grill me" |
-| [idea-refine](skills/idea-refine/SKILL.md) | Structured divergent/convergent thinking to turn vague ideas into concrete proposals | You have a rough concept that needs exploration |
-| [spec-driven-development](skills/spec-driven-development/SKILL.md) | Write a PRD covering objectives, commands, structure, code style, testing, and boundaries before any code | Starting a new project, feature, or significant change |
-| [constraint-driven-development](skills/constraint-driven-development/SKILL.md) | Interviews you for a quality bar with sane default thresholds, writes CONSTRAINTS.md, places each check by cost, and catches agents silencing checks or skipping tests to get green | No standards are written down, or an agent is producing more than anyone reads |
+| [interview-me](skills/interview-me/SKILL.md) | One-question-at-a-time interview extracting core requirements until ~95% confidence | The ask is underspecified, or "interview me" / "grill me" is invoked |
+| [idea-refine](skills/idea-refine/SKILL.md) | Structured divergent/convergent thinking turning vague concepts into concrete proposals | Exploring a rough concept before committing to planning |
+| [spec-driven-development](skills/spec-driven-development/SKILL.md) | Drafts a PRD covering objectives, commands, architecture, and testing before code | Starting a new project, feature, or major refactoring |
+| [constraint-driven-development](skills/constraint-driven-development/SKILL.md) | Defines and locks quality constraints in `CONSTRAINTS.md`, preventing silent bar-lowering | Setting up quality thresholds or preventing agents from silencing tests |
 
-### Plan - Break it down
-
-| Skill | What It Does | Use When |
-|-------|-------------|----------|
-| [planning-and-task-breakdown](skills/planning-and-task-breakdown/SKILL.md) | Decompose specs into small, verifiable tasks with acceptance criteria and dependency ordering | You have a spec and need implementable units |
-
-### Build - Write the code
+### Plan — Break Work Down
 
 | Skill | What It Does | Use When |
 |-------|-------------|----------|
-| [incremental-implementation](skills/incremental-implementation/SKILL.md) | Thin vertical slices - implement, test, verify, commit. Feature flags, safe defaults, rollback-friendly changes | Any change touching more than one file |
-| [test-driven-development](skills/test-driven-development/SKILL.md) | Red-Green-Refactor, test pyramid (80/15/5), test sizes, DAMP over DRY, Beyonce Rule, browser testing | Implementing logic, fixing bugs, or changing behavior |
-| [context-engineering](skills/context-engineering/SKILL.md) | Feed agents the right information at the right time - rules files, context packing, MCP integrations | Starting a session, switching tasks, or when output quality drops |
-| [source-driven-development](skills/source-driven-development/SKILL.md) | Ground every framework decision in official documentation - verify, cite sources, flag what's unverified | You want authoritative, source-cited code for any framework or library |
-| [doubt-driven-development](skills/doubt-driven-development/SKILL.md) | Adversarial fresh-context review of every non-trivial decision in-flight - CLAIM → EXTRACT → DOUBT → RECONCILE → STOP, with optional user-authorized cross-model escalation | Stakes are high (production, security, irreversible), working in unfamiliar code, or a confident output is cheaper to verify now than to debug later |
-| [frontend-ui-engineering](skills/frontend-ui-engineering/SKILL.md) | Component architecture, design systems, state management, responsive design, WCAG 2.1 AA accessibility | Building or modifying user-facing interfaces |
-| [api-and-interface-design](skills/api-and-interface-design/SKILL.md) | Contract-first design, Hyrum's Law, One-Version Rule, error semantics, boundary validation | Designing APIs, module boundaries, or public interfaces |
+| [planning-and-task-breakdown](skills/planning-and-task-breakdown/SKILL.md) | Decomposes specs into atomic, testable vertical tasks with dependency ordering | Breaking down an approved spec into actionable engineering slices |
 
-### Verify - Prove it works
+### Build — Implement with Discipline
 
 | Skill | What It Does | Use When |
 |-------|-------------|----------|
-| [browser-testing-with-devtools](skills/browser-testing-with-devtools/SKILL.md) | Chrome DevTools MCP for live runtime data - DOM inspection, console logs, network traces, performance profiling | Building or debugging anything that runs in a browser |
-| [debugging-and-error-recovery](skills/debugging-and-error-recovery/SKILL.md) | Five-step triage: reproduce, localize, reduce, fix, guard. Stop-the-line rule, safe fallbacks | Tests fail, builds break, or behavior is unexpected |
+| [incremental-implementation](skills/incremental-implementation/SKILL.md) | Thin vertical slices — implement, test, verify, commit with feature flags & safe defaults | Any change touching more than one file |
+| [test-driven-development](skills/test-driven-development/SKILL.md) | Red-Green-Refactor loop, test pyramid, Beyonce Rule, deterministic unit & integration tests | Implementing new logic, fixing bugs, or modifying behavior |
+| [context-engineering](skills/context-engineering/SKILL.md) | Context hygiene, payload minimization, rules files, and MCP integration tuning | Starting sessions or optimizing token usage |
+| [source-driven-development](skills/source-driven-development/SKILL.md) | Grounds every technical decision in official documentation and cited sources | Building with external frameworks or libraries where accuracy matters |
+| [doubt-driven-development](skills/doubt-driven-development/SKILL.md) | Adversarial fresh-context review of in-flight decisions (CLAIM -> EXTRACT -> DOUBT -> RECONCILE) | High-stakes tasks (auth, schema migration, irreversible operations) |
+| [frontend-ui-engineering](skills/frontend-ui-engineering/SKILL.md) | Component architecture, responsive design, state management, WCAG 2.1 AA accessibility | Building or updating user-facing user interfaces |
+| [api-and-interface-design](skills/api-and-interface-design/SKILL.md) | Contract-first API design, Hyrum's Law, error semantics, and backward compatibility | Designing APIs, SDKs, module boundaries, or public contracts |
 
-### Review - Quality gates before merge
-
-| Skill | What It Does | Use When |
-|-------|-------------|----------|
-| [code-review-and-quality](skills/code-review-and-quality/SKILL.md) | Five-axis review, change sizing (~100 lines), severity labels (Nit/Optional/FYI), review speed norms, splitting strategies | Before merging any change |
-| [code-simplification](skills/code-simplification/SKILL.md) | Chesterton's Fence, Rule of 500, reduce complexity while preserving exact behavior | Code works but is harder to read or maintain than it should be |
-| [security-and-hardening](skills/security-and-hardening/SKILL.md) | OWASP Top 10 prevention, auth patterns, secrets management, dependency auditing, three-tier boundary system | Handling user input, auth, data storage, or external integrations |
-| [performance-optimization](skills/performance-optimization/SKILL.md) | Measure-first approach - Core Web Vitals targets, profiling workflows, bundle analysis, anti-pattern detection | Performance requirements exist or you suspect regressions |
-
-### Ship - Deploy with confidence
+### Verify — Prove It Works
 
 | Skill | What It Does | Use When |
 |-------|-------------|----------|
-| [git-workflow-and-versioning](skills/git-workflow-and-versioning/SKILL.md) | Trunk-based development, atomic commits, change sizing (~100 lines), the commit-as-save-point pattern | Making any code change (always) |
-| [ci-cd-and-automation](skills/ci-cd-and-automation/SKILL.md) | Shift Left, Faster is Safer, feature flags, quality gate pipelines, failure feedback loops | Setting up or modifying build and deploy pipelines |
-| [deprecation-and-migration](skills/deprecation-and-migration/SKILL.md) | Code-as-liability mindset, compulsory vs advisory deprecation, migration patterns, zombie code removal | Removing old systems, migrating users, or sunsetting features |
-| [documentation-and-adrs](skills/documentation-and-adrs/SKILL.md) | Architecture Decision Records, API docs, inline documentation standards - document the *why* | Making architectural decisions, changing APIs, or shipping features |
-| [observability-and-instrumentation](skills/observability-and-instrumentation/SKILL.md) | Structured logging, RED metrics, OpenTelemetry tracing, symptom-based alerting - instrument as you build | Adding telemetry, or shipping anything that runs in production |
-| [shipping-and-launch](skills/shipping-and-launch/SKILL.md) | Pre-launch checklists, feature flag lifecycle, staged rollouts, rollback procedures, monitoring setup | Preparing to deploy to production |
+| [browser-testing-with-devtools](skills/browser-testing-with-devtools/SKILL.md) | Chrome DevTools MCP for live runtime inspection — DOM, console, network traces, CWV profiling | Building or debugging web applications running in a browser |
+| [debugging-and-error-recovery](skills/debugging-and-error-recovery/SKILL.md) | 5-step systematic root-cause debugging: reproduce, localize, reduce, fix, guard | Tests fail, builds break, or unexpected runtime errors occur |
 
----
+### Review — Multi-Axis Quality Gates
 
-## Agent Personas
+| Skill | What It Does | Use When |
+|-------|-------------|----------|
+| [code-review-and-quality](skills/code-review-and-quality/SKILL.md) | Five-axis code review, change sizing (~100 lines), severity labels, staff engineer bar | Prior to merging any code change |
+| [code-simplification](skills/code-simplification/SKILL.md) | Chesterton's Fence, dead-code removal, reducing cognitive complexity preserving behavior | Code works but is overly complex or difficult to maintain |
+| [security-and-hardening](skills/security-and-hardening/SKILL.md) | OWASP Top 10 mitigation, auth patterns, secret handling, dependency vulnerability auditing | Handling untrusted input, user sessions, or external APIs |
+| [performance-optimization](skills/performance-optimization/SKILL.md) | Measure-first optimization, Core Web Vitals targets, bundle analysis, N+1 query elimination | Addressing latency, throughput, or memory bottlenecks |
 
-Pre-configured specialist personas for targeted reviews:
+### Ship — Production Release
 
-| Agent | Role | Perspective |
-|-------|------|-------------|
-| [code-reviewer](agents/code-reviewer.md) | Senior Staff Engineer | Five-axis code review with "would a staff engineer approve this?" standard |
-| [test-engineer](agents/test-engineer.md) | QA Specialist | Test strategy, coverage analysis, and the Prove-It pattern |
-| [security-auditor](agents/security-auditor.md) | Security Engineer | Vulnerability detection, threat modeling, OWASP assessment |
-| [web-performance-auditor](agents/web-performance-auditor.md) | Web Performance Engineer | Core Web Vitals audit with Quick/Deep modes and a metric-honesty rule; run it via `/webperf` |
-
-See [docs/agents.md](docs/agents.md) for the decision matrix, orchestration rules, and how personas compose with skills and slash commands.
+| Skill | What It Does | Use When |
+|-------|-------------|----------|
+| [git-workflow-and-versioning](skills/git-workflow-and-versioning/SKILL.md) | Trunk-based development, atomic commits, semantic versioning, and human-facing changelogs | Every code change, branch, commit, tag, and release |
+| [ci-cd-and-automation](skills/ci-cd-and-automation/SKILL.md) | Shift-Left testing, pipeline quality gates, failure feedback loops, feature flags | Setting up or updating CI/CD build and release workflows |
+| [deprecation-and-migration](skills/deprecation-and-migration/SKILL.md) | Code-as-liability mindset, expand/contract migrations, zero-downtime schema evolution | Sunsetting legacy APIs, removing deprecated code, database migrations |
+| [documentation-and-adrs](skills/documentation-and-adrs/SKILL.md) | Architecture Decision Records (ADRs), API docs, documenting the *why* behind decisions | Changing architectural foundations, APIs, or major features |
+| [observability-and-instrumentation](skills/observability-and-instrumentation/SKILL.md) | Structured logging, RED/USE metrics, OpenTelemetry distributed tracing, symptom alerting | Adding telemetry or preparing production services |
+| [shipping-and-launch](skills/shipping-and-launch/SKILL.md) | Pre-launch checklists, staged rollouts, rollback plans, production smoke verification | Preparing to release features or versions to production |
 
 ---
 
 ## Reference Checklists
 
-Quick-reference material that skills pull in when needed:
+Included checklists referenced dynamically by the skills:
 
-| Reference | Covers |
-|-----------|--------|
-| [definition-of-done.md](references/definition-of-done.md) | Project-wide standing bar every change clears, contrasted with per-task acceptance criteria |
-| [testing-patterns.md](references/testing-patterns.md) | Test structure, naming, mocking, React/API/E2E examples, anti-patterns (JavaScript/TypeScript) |
-| [security-checklist.md](references/security-checklist.md) | Pre-commit checks, auth, input validation, headers, CORS, OWASP Top 10 |
-| [performance-checklist.md](references/performance-checklist.md) | Core Web Vitals targets, frontend/backend checklists, measurement commands |
-| [accessibility-checklist.md](references/accessibility-checklist.md) | Keyboard nav, screen readers, visual design, ARIA, testing tools |
-| [observability-checklist.md](references/observability-checklist.md) | On-call questions, structured logging, RED/USE metrics, tracing, symptom-based alerting, pre-launch gate |
-| [orchestration-patterns.md](references/orchestration-patterns.md) | Endorsed multi-persona orchestration patterns, anti-patterns, and the "personas don't invoke personas" rule |
+- [definition-of-done.md](references/definition-of-done.md) — Universal completion criteria for all changes.
+- [testing-patterns.md](references/testing-patterns.md) — Test sizing, naming conventions, mock patterns, and anti-patterns.
+- [security-checklist.md](references/security-checklist.md) — Pre-commit security checks, auth, input validation, and OWASP Top 10.
+- [performance-checklist.md](references/performance-checklist.md) — Core Web Vitals targets, database query checklist, and profiling tools.
+- [accessibility-checklist.md](references/accessibility-checklist.md) — Keyboard navigation, screen readers, ARIA, and WCAG 2.1 standards.
+- [observability-checklist.md](references/observability-checklist.md) — Structured logging, RED metrics, alerting rules, and incident diagnosis.
+- [orchestration-patterns.md](references/orchestration-patterns.md) — Multi-agent patterns, parallel fan-out, and delegation rules.
 
 ---
 
-## How Skills Work
+## Acknowledgements & Credits
 
-Every skill follows a consistent anatomy:
+`agy-harness` is built upon the foundational work of **Addy Osmani** and the contributors of [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills):
 
-```
-┌─────────────────────────────────────────────────┐
-│  SKILL.md                                       │
-│                                                 │
-│  ┌─ Frontmatter ─────────────────────────────┐  │
-│  │ name: lowercase-hyphen-name               │  │
-│  │ description: Guides agents through [task].│  │
-│  │              Use when…                    │  │
-│  └───────────────────────────────────────────┘  │                                                                                                
-│  Overview         → What this skill does        │
-│  When to Use      → Triggering conditions       │
-│  Process          → Step-by-step workflow       │
-│  Rationalizations → Excuses + rebuttals         │
-│  Red Flags        → Signs something's wrong     │
-│  Verification     → Evidence requirements       │
-└─────────────────────────────────────────────────┘
-```
+- **Addy Osmani** ([@addyosmani](https://github.com/addyosmani)) — Creator of Agent Skills
+- **Federico Bartoli** ([@federicobartoli](https://github.com/federicobartoli)) — Collaborator
+- **Joan León** ([@nucliweb](https://github.com/nucliweb)) — Collaborator
 
-**Key design choices:**
-
-- **Process, not prose.** Skills are workflows agents follow, not reference docs they read. Each has steps, checkpoints, and exit criteria.
-- **Anti-rationalization.** Every skill includes a table of common excuses agents use to skip steps (e.g., "I'll add tests later") with documented counter-arguments.
-- **Verification is non-negotiable.** Every skill ends with evidence requirements - tests passing, build output, runtime data. "Seems right" is never sufficient.
-- **Progressive disclosure.** The `SKILL.md` is the entry point. Supporting references load only when needed, keeping token usage minimal.
-
----
-
-## Project Structure
-
-The portable core stays in shared directories. Host-specific paths are native discovery conventions, not branding aliases; renaming or merging them would break the tools that scan those exact locations.
-
-| Layer / consumer | Repository paths | Purpose |
-|---|---|---|
-| Shared workflow core | `skills/` (25 skills) | Portable `SKILL.md` workflows used by every integration |
-| Shared review material | `agents/` (4 personas), `references/` (7 checklists) | Specialist reviewers and pack-level checklists carried by whole-repo installs |
-| Claude Code adapter | `.claude/commands/` (9 commands), `.claude-plugin/`, `hooks/` | Slash-command wrappers, marketplace metadata, and lifecycle hooks |
-| Gemini CLI adapter | `.gemini/commands/` (9 commands) | Gemini-native TOML command wrappers |
-| Antigravity CLI adapter | `commands/` (9 commands), `plugin.json` | Legacy TOML wrappers and the root plugin manifest; see the [known wrapper limitation](docs/antigravity-setup.md#lifecycle-workflows-and-command-compatibility) |
-| Codex adapter | `.codex-plugin/`, `.agents/plugins/` | Codex plugin metadata and marketplace registration; Codex consumes `skills/` directly |
-| GitHub Copilot CLI adapter | `plugin.json` | Root plugin metadata; Copilot CLI discovers `skills/` by convention and does not register the lifecycle wrappers |
-| Contributor tooling | `scripts/` (13 scripts), `evals/` (25 case files), `.github/workflows/` | Validation, routing evals, and CI |
-| Documentation | `docs/` | Universal guidance and per-tool setup guides |
-
-Tools without a checked-in adapter directory install or copy the shared `skills/` core into their own native location. The [Quick Start](#quick-start) links the setup guide for each supported host.
-
----
-
-## Why Agent Skills?
-
-AI coding agents default to the shortest path - which often means skipping specs, tests, security reviews, and the practices that make software reliable. Agent Skills gives agents structured workflows that enforce the same discipline senior engineers bring to production code.
-
-Each skill encodes hard-won engineering judgment: *when* to write a spec, *what* to test, *how* to review, and *when* to ship. These aren't generic prompts - they're the kind of opinionated, process-driven workflows that separate production-quality work from prototype-quality work.
-
-Skills bake in best practices from Google's engineering culture — including concepts from [Software Engineering at Google](https://abseil.io/resources/swe-book) and Google's [engineering practices guide](https://google.github.io/eng-practices/). You'll find Hyrum's Law in API design, the Beyonce Rule and test pyramid in testing, change sizing and review speed norms in code review, Chesterton's Fence in simplification, trunk-based development in git workflow, Shift Left and feature flags in CI/CD, and a dedicated deprecation skill treating code as a liability. These aren't abstract principles — they're embedded directly into the step-by-step workflows agents follow.
-
----
-
-## How it compares
-
-Wondering how this stacks up against [Superpowers](https://github.com/obra/superpowers) or [Matt Pocock's skills](https://github.com/mattpocock/skills)? See **[docs/comparison.md](docs/comparison.md)** for an honest, side-by-side look at how the three are shaped differently and when to reach for each — including a link to a controlled [head-to-head experiment](https://www.linkedin.com/pulse/superpowers-vs-agent-skills-faster-shipping-safer-reasoning-om-mishra-dzakf/).
-
----
-
-## Contributing
-
-Skills should be **specific** (actionable steps, not vague advice), **verifiable** (clear exit criteria with evidence requirements), **battle-tested** (based on real workflows), and **minimal** (only what's needed to guide the agent).
-
-See [docs/skill-anatomy.md](docs/skill-anatomy.md) for the format specification, [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, and [docs/advanced-per-agent-configuration.md](docs/advanced-per-agent-configuration.md) for applying model routing, tool restrictions, and other per-agent runtime controls without breaking the portable `SKILL.md` frontmatter.
-
----
-
-## Team
-
-agent-skills is built and maintained by:
-
-| | Name | GitHub | Role |
-|---|------|--------|------|
-| <img src="https://github.com/addyosmani.png?size=120" width="60" height="60" alt="Addy Osmani"> | **Addy Osmani** | [@addyosmani](https://github.com/addyosmani) | Creator |
-| <img src="https://github.com/federicobartoli.png?size=120" width="60" height="60" alt="Federico Bartoli"> | **Federico Bartoli** | [@federicobartoli](https://github.com/federicobartoli) | Collaborator |
-| <img src="https://github.com/nucliweb.png?size=120" width="60" height="60" alt="Joan León"> | **Joan León** | [@nucliweb](https://github.com/nucliweb) | Collaborator |
+`agy-harness` is adapted and maintained by **JsonLee12138** ([@JsonLee12138](https://github.com/JsonLee12138)), adding Google Antigravity harness orchestration, Software 1.0 gates, Disk SSoT contracts, and isolated subagent architectures.
 
 ---
 
 ## License
 
-MIT - use these skills in your projects, teams, and tools.
+MIT License. See [LICENSE](LICENSE) for details.

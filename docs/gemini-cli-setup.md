@@ -129,5 +129,5 @@ Each command invokes the corresponding skill automatically — no manual skill l
 
 1. **Prefer skills over GEMINI.md** — Skills activate on demand and keep your context window focused. Only put skills in GEMINI.md if you want them always loaded.
 2. **Skill descriptions matter** — Each SKILL.md has a `description` field in its frontmatter that tells agents when to activate it. The descriptions in this repo are optimized for auto-discovery across all supported tools (Claude Code, Gemini CLI, etc.) by clearly stating both *what* the skill does and *when* it should be triggered.
-3. **Use agents for review** — Copy `agents/code-reviewer.md` content when requesting structured code reviews.
+3. **Use agents for review** — Copy `agents/staff-gatekeeper.md` (or `docs/legacy-personas/code-reviewer.md`) content when requesting structured code reviews.
 4. **Combine with references** — Reference checklists from `references/` when working on specific quality areas like testing or performance.

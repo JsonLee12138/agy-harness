@@ -1,0 +1,44 @@
+{
+  "skill_name": "harness-init",
+  "trigger": {
+    "positive": [
+      {
+        "prompt": "Initialize agy-harness in this project with gate-check.sh and .artifacts contracts",
+        "top_k": 3
+      },
+      {
+        "prompt": "Run harness-init to scaffold .agents/rules/agy-harness.md and Disk SSoT templates",
+        "top_k": 3
+      },
+      {
+        "prompt": "Bootstrap the AGY Harness coordinator rule and Software 1.0 gate script in my repo",
+        "top_k": 3
+      }
+    ],
+    "negative": [
+      {
+        "prompt": "Write unit tests for the date parser",
+        "owner": "test-driven-development"
+      },
+      {
+        "prompt": "Modify our CI/CD build and deployment pipeline test runners",
+        "owner": "ci-cd-and-automation"
+      }
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Bootstrap AGY Harness in this repository without overwriting any existing contract files, then verify the Software 1.0 gate runs cleanly.",
+      "expected_output": "Scaffolded .agents/rules/agy-harness.md, .agents/hooks.json, executable scripts/gate-check.sh and scripts/harness-approval-gate.sh, and .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
+      "files": [
+        "harness-init"
+      ],
+      "expectations": [
+        "Creates .agents/rules/agy-harness.md, .agents/hooks.json, scripts/gate-check.sh, scripts/harness-approval-gate.sh, and the four .artifacts/ contract templates",
+        "Does not pass --force when preserving existing non-empty contract files",
+        "Runs bash scripts/gate-check.sh and verifies ALL SOFTWARE 1.0 GATES PASSED"
+      ]
+    }
+  ]
+}

@@ -1,13 +1,13 @@
 {
-  "name": "agent-skills",
+  "name": "agy-harness",
   "interface": {
-    "displayName": "Agent Skills"
+    "displayName": "AGY Harness"
   },
   "plugins": [
     {
-      "name": "agent-skills",
-      "version": "0.6.15",
-      "description": "Production-grade engineering skills covering every phase of software development: spec, plan, build, verify, review, and ship.",
+      "name": "agy-harness",
+      "version": "0.1.0",
+      "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity with Disk SSoT contracts, Software 1.0 gates, and isolated review subagents.",
       "source": {
         "source": "local",
         "path": "./"
