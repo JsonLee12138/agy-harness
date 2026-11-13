@@ -3,7 +3,7 @@ name: slice-builder
 description: "垂直切片施工员。基于锁定的磁盘契约(.artifacts/)按切片执行 TDD 红绿重构实现，并通过 Software 1.0 脚本门禁自检。"
 mainAgent: false
 subagent: true
-model: inherit
+model: flash
 commandExecutionPolicy: sandbox
 tools:
   - view_file
