@@ -44,5 +44,5 @@ skills:
 ## Composition
 
 - **Invoke directly when:** 用户希望在动手写代码前用独立空白上下文对一份设计文档或重构计划做事前验尸（Pre-mortem）。
-- **Invoke via:** 主会话在 Tier L / Tier XL（及复杂 Tier M）完成 `.artifacts/SPEC.md` 与 `.artifacts/PLAN.md` 初稿后唤醒，最多进行 1 轮对抗收敛。
+- **Invoke via:** 主会话在 Tier L / Tier XL **由用户点击 `Proceed` 确认需求与核心方案完全符合之后**唤醒，执行最多 1 轮对抗校验；`[RISK-NOTE]` 直接写入 `.artifacts/PLAN.md` 的 `## Implementation Notes / Guardrails`（免重审），仅在发现必须推翻原方案或修改公共契约的 `[BLOCKER]` 时才退回用户二次确认。
 - **Do not invoke from another persona.** 所有编排权归属主会话，本角色严格只读且禁止派生其他子智能体。

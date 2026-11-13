@@ -2,6 +2,19 @@
 set -euo pipefail
 export CI=true GIT_PAGER=cat
 
+FAST_MODE=false
+for arg in "$@"; do
+  case "$arg" in
+    --fast)
+      FAST_MODE=true
+      ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
 echo "[Gate 1/4] Checking diff size guideline..."
 if git rev-parse --verify HEAD >/dev/null 2>&1; then
   CHANGED_LINES=$(git --no-pager diff --numstat HEAD | awk '{add+=$1; del+=$2} END {print add+del+0}')
@@ -26,8 +39,15 @@ if [ -f go.mod ] && command -v go >/dev/null 2>&1; then
 fi
 
 echo "[Gate 3/4] Deterministic Test Suite..."
-if [ -f package.json ]; then
-  npm test --if-present < /dev/null
+if [ "$FAST_MODE" = "true" ]; then
+  echo "Fast mode enabled: running fast checks (run full scripts/gate-check.sh before final delivery)."
+  if [ -f package.json ]; then
+    npm run test:fast --if-present < /dev/null
+  fi
+else
+  if [ -f package.json ]; then
+    npm test --if-present < /dev/null
+  fi
 fi
 if [ -f scripts/validate-skills.js ] && command -v node >/dev/null 2>&1; then
   node scripts/validate-skills.js < /dev/null

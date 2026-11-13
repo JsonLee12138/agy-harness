@@ -19,7 +19,7 @@ Registers the **AGY Harness generate-and-falsify state machine** inside a target
 - Scaffolding `.agents/rules/agy-harness.md`, `.agents/hooks.json`, `scripts/gate-check.sh`, and `.artifacts/` before starting Tier M / L / XL work
 - Syncing standalone workspace subagents (`.agents/agents/*.md`) into a repository that will run without a global plugin installation
 
-**When NOT to use:** Mid-implementation when `.agents/rules/agy-harness.md` and `.artifacts/SPEC.md` already exist and contain active contract content.
+- **When NOT to use:** Only when passing `--force` mid-implementation while `.artifacts/SPEC.md` and `.artifacts/PLAN.md` hold active task contracts. Running default `init-harness.sh` without `--force` is safe for upgrading `.agents/rules/agy-harness.md` and `scripts/harness-approval-gate.sh` in-place while preserving existing `.artifacts/` contracts, customized `scripts/gate-check.sh`, and sibling entries in `.agents/hooks.json`.
 
 ## The Initialization Process
 
@@ -30,7 +30,7 @@ Check whether the target repository already contains any of the following files:
 - `scripts/gate-check.sh`, `scripts/harness-approval-gate.sh`
 - `.artifacts/SPEC.md`, `.artifacts/CONSTRAINTS.md`, `.artifacts/PLAN.md`, `.artifacts/context-brief.md`
 
-Never pass `--force` unless the user explicitly asks to overwrite existing `.artifacts/` contracts or customized rules. Existing sibling hooks in `.agents/hooks.json` are preserved and merged automatically.
+Re-running without `--force` always updates harness-managed `.agents/rules/agy-harness.md`, `scripts/harness-approval-gate.sh`, `.agents/hooks.json`'s `harness-contract-approval-gate` entry (and `.agents/agents/*.md` when `--with-local-agents` is set) so rule and gate versions stay current, while preserving existing `.artifacts/` contracts, customized `scripts/gate-check.sh`, and sibling hooks in `.agents/hooks.json`. Never pass `--force` unless the user explicitly asks to reset `.artifacts/` contracts or `scripts/gate-check.sh`.
 
 ### Step 2: Run the Deterministic Scaffolding Script
 
@@ -65,7 +65,7 @@ Run `bash scripts/gate-check.sh` in the workspace root and confirm it exits `0` 
 | Rationalization | Reality |
 |---|---|
 | "I'll hand-write `.agents/rules/agy-harness.md` from memory instead of running the script" | Hand-typed rules drift on subagent names, `agy-harness:*` skill prefixes, human `Proceed` checkpoints, and the `.agents/hooks.json` approval lock. Run `init-harness.sh` for exact parity. |
-| "I'll pass `--force` to make sure everything is fresh" | `--force` wipes locked `.artifacts/SPEC.md` and `PLAN.md` contracts that may be mid-flight. Default mode is idempotent and preserves existing files. |
+| "I'll pass `--force` to make sure everything is fresh" | `--force` wipes locked `.artifacts/SPEC.md` and `PLAN.md` contracts and customized `scripts/gate-check.sh`. Default mode already refreshes `.agents/rules/agy-harness.md` and `scripts/harness-approval-gate.sh` automatically while preserving `.artifacts/` and `scripts/gate-check.sh`. |
 | "I can skip running `scripts/gate-check.sh` during init" | A broken Gate 1.0 script blocks every downstream `slice-builder` turn. Verify it passes once before starting feature work. |
 
 ## Red Flags

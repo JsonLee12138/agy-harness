@@ -32,7 +32,7 @@ Default AI coding agents take the path of least resistance: single-turn executio
 `agy-harness` transforms agent interactions into a deterministic **Disk SSoT (`.artifacts/`) + Software 1.0 Gate (`scripts/gate-check.sh`) + Physically Isolated Fresh-Context Subagent** state machine:
 
 - **One-step workspace bootstrap (`/agy-harness:harness-init`)**: Registers `.agents/rules/agy-harness.md` (replacing the deprecated UI `mainAgent` switcher), `.agents/hooks.json` + `scripts/harness-approval-gate.sh` (Software 1.0 `PreToolUse` contract approval lock), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`.
-- **Native `Proceed` human confirmation gates**: Tier M pauses once (`SPEC + PLAN`), Tier L/XL pauses twice (`SPEC` first, then `arch-redteam`-converged `PLAN`), and every substantive edit to `SPEC.md` or `PLAN.md` physically requires re-confirmation before `slice-builder` or `swarm` can run.
+- **Alignment-first `Proceed` confirmation gates**: Aligns requirements and core plan with the user first (`1 Proceed` click by default across Tier M/L/XL), runs post-approval `arch-redteam` validation for Tier L/XL (pausing again only when a `[BLOCKER]` alters core scope or public contracts), and lets non-contract guardrails and status updates proceed without re-locking.
 - **Self-contained `agy-harness:*` namespace**: Ships all 25 upstream skills untouched (ready for seamless upstream `git merge`) plus `harness-init`. Disable standalone `agent-skills` after installing to avoid duplicate skill-catalog token overhead.
 - **Software 1.0 zero-token gates (`scripts/gate-check.sh`)**: Enforces diff size limits (< 400 lines), typecheck/lint, deterministic tests, and secret / `debugger;` scans before waking costly `pro` review subagents.
 - **5 physically isolated subagents**: Read-only hardware separation for fact probes and review, routing tasks across heterogeneous model tiers (`flash` / `inherit` / `pro`).
@@ -169,10 +169,10 @@ This sets up:
 
 | Tier | Scope | Pipeline & Human Checkpoints | Cost Multiplier |
 |------|-------|------------------------------|-----------------|
-| **Tier S** | Single-file bugfix, copy/style tweak, < 50 lines | Main session TDD -> `gate-check.sh` -> Done (0 subagents) | **1.0x** |
-| **Tier M** | Standard feature or refactor (2-6 files) | `repo-scout` -> `.artifacts/` contracts -> **`Proceed` #1** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` | **1.8x** |
-| **Tier L** | Architecture change, public API, auth/payment | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> `PLAN` + `arch-redteam` -> **`Proceed` #2** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` + `risk-specialist` | **2.6x** |
-| **Tier XL** | >= 3 orthogonal modules with disjoint trees | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> Subtree `PLAN` + `arch-redteam` -> **`Proceed` #2** -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.2x - 3.2x** |
+| **Tier S** | `<= 3` files (incl. tests), `<= 150` lines, low risk | Main session TDD -> `gate-check.sh` -> Done (0 subagents, 0 prompts) | **1.0x** |
+| **Tier M** | Standard feature or refactor | Direct read (or on-demand `repo-scout`) -> **`Proceed` #1** -> adaptive `slice-builder` -> `gate-check.sh` -> diff check (on-demand `staff-gatekeeper`) | **1.3x - 1.6x** |
+| **Tier L** | Architecture change, public API, auth/payment | Direct read / `repo-scout` -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> adaptive `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` + `risk-specialist` | **2.0x - 2.4x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint trees | Direct read / `repo-scout` -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.0x - 2.8x** |
 
 ---
 
@@ -184,7 +184,7 @@ Five physically isolated subagents orchestrated by `.agents/rules/agy-harness.md
 |----------|------------|-------------------|------|
 | [repo-scout](agents/repo-scout.md) | `flash` | Read-only (`off`) | Fast codebase and official-doc fact probe producing concise (`<= 2K` tokens) Context Briefs |
 | [arch-redteam](agents/arch-redteam.md) | `pro` | Read-only (`off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails |
-| [slice-builder](agents/slice-builder.md) | `inherit` | Read + Write (`sandbox`) | Vertical-slice TDD builder; verifies `scripts/gate-check.sh` before handoff; supports worktree sharding |
+| [slice-builder](agents/slice-builder.md) | `flash` | Read + Write (`sandbox`) | Cohesive/adaptive TDD builder; supports `gate-check.sh --fast`, `send_message` resume, and worktree sharding |
 | [staff-gatekeeper](agents/staff-gatekeeper.md) | `pro` | Read-only (`sandbox`) | 3-in-1 unified post-gate reviewer: five-axis quality, complexity pruning, and anti-fake-test check |
 | [risk-specialist](agents/risk-specialist.md) | `pro` | Read-only (`sandbox`) | Conditional deep auditor for auth, external input, high-traffic paths, and performance hotspots |
 

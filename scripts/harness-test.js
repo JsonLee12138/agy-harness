@@ -12,7 +12,7 @@ const ROOT = path.resolve(__dirname, '..');
 const EXPECTED_SUBAGENTS = {
   'repo-scout': { model: 'flash', policy: 'off', writable: false },
   'arch-redteam': { model: 'pro', policy: 'off', writable: false },
-  'slice-builder': { model: 'inherit', policy: 'sandbox', writable: true },
+  'slice-builder': { model: 'flash', policy: 'sandbox', writable: true },
   'staff-gatekeeper': { model: 'pro', policy: 'sandbox', writable: false },
   'risk-specialist': { model: 'pro', policy: 'sandbox', writable: false },
 };
@@ -225,9 +225,17 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
     '.artifacts/ must be completely ignored by Git',
   );
 
-  // Verify idempotency: custom SPEC.md and custom sibling hooks in .agents/hooks.json are preserved without --force
+  // Verify upgrade semantics: outdated rules and approval gate are ALWAYS updated without --force,
+  // while custom SPEC.md, custom gate-check.sh, and custom sibling hooks in .agents/hooks.json are preserved
   const specPath = path.join(targetDir, '.artifacts', 'SPEC.md');
   fs.writeFileSync(specPath, '# Custom Spec Locked\n');
+  const ruleDstPath = path.join(targetDir, '.agents', 'rules', 'agy-harness.md');
+  fs.writeFileSync(ruleDstPath, '# Outdated Rule v0.1.0\n');
+  const gateDstPath = path.join(targetDir, 'scripts', 'gate-check.sh');
+  fs.writeFileSync(gateDstPath, '#!/usr/bin/env bash\necho custom-gate\n');
+  const approvalGateDstPath = path.join(targetDir, 'scripts', 'harness-approval-gate.sh');
+  fs.writeFileSync(approvalGateDstPath, '#!/bin/bash\n# outdated gate\n');
+
   const hooksPath = path.join(targetDir, '.agents', 'hooks.json');
   const existingHooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
   existingHooks['custom-user-hook'] = { PostToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo ok' }] }] };
@@ -236,6 +244,17 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
 
   execFileSync('bash', [initScript, targetDir], { encoding: 'utf8' });
   assert.equal(fs.readFileSync(specPath, 'utf8'), '# Custom Spec Locked\n');
+  assert.equal(fs.readFileSync(gateDstPath, 'utf8'), '#!/usr/bin/env bash\necho custom-gate\n');
+  assert.equal(
+    fs.readFileSync(ruleDstPath, 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'skills', 'harness-init', 'references', 'harness-rule-template.md'), 'utf8'),
+    'init-harness.sh must replace outdated .agents/rules/agy-harness.md without --force',
+  );
+  assert.equal(
+    fs.readFileSync(approvalGateDstPath, 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'scripts', 'harness-approval-gate.sh'), 'utf8'),
+    'init-harness.sh must replace outdated scripts/harness-approval-gate.sh without --force',
+  );
   const mergedHooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
   assert.ok(mergedHooks['custom-user-hook'], 'Existing custom-user-hook must be preserved in .agents/hooks.json');
   assert.ok(
@@ -384,17 +403,71 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
   );
   assert.equal(runHook('invoke_subagent', { TypeName: 'slice-builder' }).decision, 'allow');
 
-  // 6. Checkbox/status progress updates between Slice 1 and Slice 2 do NOT re-lock execution!
-  const planSlice1Done = lockedPlanV1.replace('`[ ] Pending`', '`[x] Completed`');
+  // 6. Post-Proceed arch-redteam + non-contract Guardrails / Implementation Notes / checkbox / Chinese status updates
+  //    do NOT re-lock slice-builder execution!
+  const preRedteamStateDir = makeTempDir('agy-harness-redteam-state-');
+  t.after(() => fs.rmSync(preRedteamStateDir, { recursive: true, force: true }));
+
+  // Simulate post-Proceed turn where arch-redteam runs BEFORE slice-builder, then guardrails are appended to PLAN.md
+  setMtime(specPath, '2026-11-11T10:02:30.000Z');
+  setMtime(planPath, '2026-11-11T10:02:30.000Z');
+  const redteamProceedTranscript = path.join(wsDir, 'transcript-redteam.jsonl');
+  fs.writeFileSync(
+    redteamProceedTranscript,
+    JSON.stringify({
+      step_index: 3,
+      source: 'USER_EXPLICIT',
+      type: 'USER_INPUT',
+      created_at: '2026-11-11T10:03:00.000Z',
+      content: 'Comments on artifact URI: file:///tmp/harness_plan.md\n\nThe user has approved this document.\n',
+    }) + '\n',
+  );
+  const runRedteamTurnHook = (toolName, args) => {
+    const payload = JSON.stringify({
+      conversationId: 'conv-approval-test-redteam',
+      workspacePaths: [wsDir],
+      transcriptPath: redteamProceedTranscript,
+      stepIdx: 12,
+      toolCall: { name: toolName, args },
+    });
+    const out = execFileSync('bash', [approvalGate], {
+      cwd: path.join(wsDir, '.agents'),
+      input: payload,
+      encoding: 'utf8',
+      env: { ...process.env, AGY_HARNESS_STATE_DIR: preRedteamStateDir },
+    });
+    return JSON.parse(out.trim());
+  };
+  assert.equal(runRedteamTurnHook('invoke_subagent', { TypeName: 'arch-redteam' }).decision, 'allow');
+
+  const planWithGuardrails =
+    lockedPlanV1.replace('`[ ] Pending`', '`[x] Completed`') +
+    '\n<!-- non-contract -->\nAdded test edge case note\n<!-- /non-contract -->\n' +
+    '\n## Implementation Notes / Guardrails\n- [RISK-NOTE] Verify expired WebAuthn challenge returns 401.\n';
   const specAc1Checked = lockedSpecV1.replace('- [ ] AC-1:', '- [x] AC-1:');
-  fs.writeFileSync(planPath, planSlice1Done);
+  fs.writeFileSync(planPath, planWithGuardrails);
   fs.writeFileSync(specPath, specAc1Checked);
   setMtime(planPath, '2026-11-11T10:04:00.000Z');
   setMtime(specPath, '2026-11-11T10:04:00.000Z');
+  fs.appendFileSync(
+    redteamProceedTranscript,
+    JSON.stringify({
+      step_index: 4,
+      source: 'MODEL',
+      type: 'PLANNER_RESPONSE',
+      created_at: '2026-11-11T10:04:01.000Z',
+      tool_calls: [{ name: 'edit_file', args: { Path: planPath } }],
+    }) + '\n',
+  );
+  assert.equal(runRedteamTurnHook('invoke_subagent', { TypeName: 'slice-builder' }).decision, 'allow');
+
+  // Also verify existing conv-approval-test-1 allows checkbox/guardrail/Chinese status updates
+  fs.writeFileSync(planPath, planWithGuardrails.replace('**Status:**', '**状态:**'));
+  setMtime(planPath, '2026-11-11T10:04:30.000Z');
   assert.equal(runHook('invoke_subagent', { TypeName: 'slice-builder' }).decision, 'allow');
 
   // 7. Substantive mid-flight modification to PLAN.md or SPEC.md IMMEDIATELY re-locks until user confirms again!
-  const modifiedPlanV2 = planSlice1Done + '\n## Slice 3: Add Redis session store\n- **Status:** `[ ] Pending`\n';
+  const modifiedPlanV2 = planWithGuardrails + '\n## Slice 3: Add Redis session store\n- **Status:** `[ ] Pending`\n';
   fs.writeFileSync(planPath, modifiedPlanV2);
   setMtime(planPath, '2026-11-11T10:05:00.000Z');
   const midFlightEditRes = runHook('invoke_subagent', { TypeName: 'slice-builder' });
@@ -413,7 +486,7 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
   );
   assert.equal(runHook('invoke_subagent', { TypeName: 'slice-builder' }).decision, 'allow');
 
-  // 9. Coordinator rule template and active workspace rule stay synced and declare tiered Proceed gates
+  // 9. Coordinator rule template and active workspace rule stay synced and declare alignment-first Proceed + elastic slice-builder
   const tplRule = fs.readFileSync(
     path.join(ROOT, 'skills', 'harness-init', 'references', 'harness-rule-template.md'),
     'utf8',
@@ -422,8 +495,11 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
   assert.equal(activeRule, tplRule, '.agents/rules/agy-harness.md must match harness-rule-template.md');
   assert.match(tplRule, /RequestFeedback:\s*true/);
   assert.match(tplRule, /harness_plan\.md/);
-  assert.match(tplRule, /合并 1 次点击 `Proceed`/);
-  assert.match(tplRule, /分 2 次点击 `Proceed`/);
+  assert.match(tplRule, /<= 3` 个文件/);
+  assert.match(tplRule, /Implementation Notes \/ Guardrails/);
+  assert.match(tplRule, /确认需求与(核心)?方案完全符合/);
+  assert.match(tplRule, /弹性 `slice-builder`/);
+  assert.match(tplRule, /send_message\(Recipient:/);
 });
 
 test('subagents enforce 5s local command guardrails and [HOST_CMD_REQUEST] <-> send_message delegation protocol', () => {
@@ -567,4 +643,45 @@ test('gate-check.sh injects CI=true, GIT_PAGER=cat, --no-pager, and < /dev/null 
   assert.match(gateSource, /export\s+CI=true\s+GIT_PAGER=cat/);
   assert.match(gateSource, /git\s+--no-pager\s+diff/);
   assert.doesNotMatch(gateSource, /\bgit\s+diff\b/, 'All git diff invocations in gate-check.sh must pass --no-pager');
+});
+
+test('gate-check.sh --fast skips full npm test while running test:fast and Gate 4 secret scans', (t) => {
+  const repoDir = makeTempDir('agy-harness-fast-gate-');
+  t.after(() => fs.rmSync(repoDir, { recursive: true, force: true }));
+
+  const gateScript = path.join(ROOT, 'scripts', 'gate-check.sh');
+
+  execFileSync('git', ['init', '-q'], { cwd: repoDir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repoDir });
+  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: repoDir });
+
+  fs.writeFileSync(
+    path.join(repoDir, 'package.json'),
+    JSON.stringify(
+      {
+        name: 'fast-gate-probe',
+        version: '1.0.0',
+        scripts: {
+          'test:fast': 'node -e "console.log(\'FAST_TEST_RAN\')"',
+          test: 'node -e "console.error(\'FULL_TEST_SHOULD_NOT_RUN\'); process.exit(1)"',
+        },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+  execFileSync('git', ['add', '.'], { cwd: repoDir });
+  execFileSync('git', ['commit', '-q', '-m', 'init fast gate'], { cwd: repoDir });
+
+  const fastOut = execFileSync('bash', [gateScript, '--fast'], { cwd: repoDir, encoding: 'utf8' });
+  assert.match(fastOut, /FAST_TEST_RAN/);
+  assert.match(fastOut, /ALL SOFTWARE 1\.0 GATES PASSED\./);
+
+  const dbgStmt = 'deb' + 'ugger;';
+  fs.writeFileSync(path.join(repoDir, 'index.js'), `const a = 1;\n${dbgStmt}\n`);
+  execFileSync('git', ['add', 'index.js'], { cwd: repoDir });
+  assert.throws(
+    () => execFileSync('bash', [gateScript, '--fast'], { cwd: repoDir, encoding: 'utf8', stdio: 'pipe' }),
+    /Potential secret or debugger statement detected/,
+  );
 });

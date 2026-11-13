@@ -55,9 +55,36 @@ copy_if_needed() {
   echo "WROTE: $dst" >&2
 }
 
-copy_if_needed "$REF_DIR/harness-rule-template.md" "$TARGET_ABS/.agents/rules/agy-harness.md" 0644
+copy_always_update() {
+  local src="$1"
+  local dst="$2"
+  local mode="${3:-0644}"
+
+  if [ -e "$dst" ] && [ "$src" -ef "$dst" ]; then
+    chmod "$mode" "$dst"
+    echo "SKIP (same file): $dst" >&2
+    return 0
+  fi
+
+  if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+    chmod "$mode" "$dst"
+    echo "SKIP (up-to-date): $dst" >&2
+    return 0
+  fi
+
+  local action="WROTE"
+  if [ -e "$dst" ]; then
+    action="UPDATED"
+  fi
+
+  cp "$src" "$dst"
+  chmod "$mode" "$dst"
+  echo "${action}: $dst" >&2
+}
+
+copy_always_update "$REF_DIR/harness-rule-template.md" "$TARGET_ABS/.agents/rules/agy-harness.md" 0644
 copy_if_needed "$PLUGIN_ROOT/scripts/gate-check.sh" "$TARGET_ABS/scripts/gate-check.sh" 0755
-copy_if_needed "$PLUGIN_ROOT/scripts/harness-approval-gate.sh" "$TARGET_ABS/scripts/harness-approval-gate.sh" 0755
+copy_always_update "$PLUGIN_ROOT/scripts/harness-approval-gate.sh" "$TARGET_ABS/scripts/harness-approval-gate.sh" 0755
 copy_if_needed "$REF_DIR/context-brief-template.md" "$TARGET_ABS/.artifacts/context-brief.md" 0644
 copy_if_needed "$REF_DIR/spec-template.md" "$TARGET_ABS/.artifacts/SPEC.md" 0644
 copy_if_needed "$REF_DIR/constraints-template.md" "$TARGET_ABS/.artifacts/CONSTRAINTS.md" 0644
@@ -75,14 +102,14 @@ merge_or_copy_hooks() {
   fi
 
   if command -v node >/dev/null 2>&1; then
-    node - "$src" "$dst" "$FORCE" <<'EOF'
+    node - "$src" "$dst" <<'EOF'
 const fs = require('node:fs');
-const [, , srcPath, dstPath, forceFlag] = process.argv;
+const [, , srcPath, dstPath] = process.argv;
 const tpl = JSON.parse(fs.readFileSync(srcPath, 'utf8'));
 const cur = JSON.parse(fs.readFileSync(dstPath, 'utf8'));
 let changed = false;
 for (const [k, v] of Object.entries(tpl)) {
-  if (forceFlag === 'true' || !Object.prototype.hasOwnProperty.call(cur, k)) {
+  if (!Object.prototype.hasOwnProperty.call(cur, k) || JSON.stringify(cur[k]) !== JSON.stringify(v)) {
     cur[k] = v;
     changed = true;
   }
@@ -91,13 +118,13 @@ if (changed) {
   fs.writeFileSync(dstPath, JSON.stringify(cur, null, 2) + '\n');
   process.stderr.write(`MERGED: ${dstPath}\n`);
 } else {
-  process.stderr.write(`SKIP (exists): ${dstPath}\n`);
+  process.stderr.write(`SKIP (up-to-date): ${dstPath}\n`);
 }
 EOF
     return 0
   fi
 
-  copy_if_needed "$src" "$dst" 0644
+  copy_always_update "$src" "$dst" 0644
 }
 
 merge_or_copy_hooks "$REF_DIR/hooks-template.json" "$TARGET_ABS/.agents/hooks.json"
@@ -134,7 +161,7 @@ if [ "$WITH_LOCAL_AGENTS" = "true" ]; then
   for agent_file in "$PLUGIN_ROOT"/agents/*.md; do
     [ -f "$agent_file" ] || continue
     base_name="$(basename "$agent_file")"
-    copy_if_needed "$agent_file" "$TARGET_ABS/.agents/agents/$base_name" 0644
+    copy_always_update "$agent_file" "$TARGET_ABS/.agents/agents/$base_name" 0644
   done
 fi
 

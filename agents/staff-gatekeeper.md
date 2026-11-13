@@ -49,5 +49,5 @@ skills:
 ## Composition
 
 - **Invoke directly when:** 用户希望在空白只读上下文中对当前分支或工作区 `git diff` 做一次高信噪比的三合一终审。
-- **Invoke via:** 主会话在 `scripts/gate-check.sh`（Software 1.0 门禁）全绿后唤醒；若存在风险路径变更，与 `risk-specialist` 并行扇出。
+- **Invoke via:** 主会话在 `scripts/gate-check.sh`（Software 1.0 门禁）全绿后按需唤醒（Tier L/XL 及较大或较复杂的 Tier M）；若存在风险路径变更，与 `risk-specialist` 并行扇出。
 - **Do not invoke from another persona.** 本角色物理剥夺一切写文件工具，禁止顺手改代码或派生其他子智能体。

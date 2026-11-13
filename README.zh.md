@@ -32,7 +32,7 @@
 `agy-harness` 将随意散漫的生成式会话，彻底重构为严密的 **磁盘单一事实来源（Disk SSoT: `.artifacts/`） + Software 1.0 确定性门禁（`scripts/gate-check.sh`） + 物理隔离的空白上下文子代理（Subagents）** 确定性状态机：
 
 - **一键项目脚手架注入 (`/agy-harness:harness-init`)**：一键注入工作区协调者规则 `.agents/rules/agy-harness.md`、确定性审批锁 `.agents/hooks.json` + `scripts/harness-approval-gate.sh`、零 Token 门禁脚本 `scripts/gate-check.sh` 以及本地契约模板 `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`。
-- **原生 `Proceed` 人工确认物理检查点**：Tier M 任务单次确认（`SPEC + PLAN` 合并审查），Tier L/XL 任务双阶段确认（先定 `SPEC`，再由 `arch-redteam` 审校 `PLAN`）。任何对契约的重大改动都会被物理拦截，必须再次人工确认后方可启动施工。
+- **先对齐后校验的原生 `Proceed` 门禁**：Tier M/L/XL 默认先就需求与核心方案对齐确认 **1 次 `Proceed`**，确认后再按风险触发 `arch-redteam` 校验（仅发现必须改范围/契约的 `[BLOCKER]` 时才二次比对确认）；进度勾选与 `## Implementation Notes / Guardrails` 非契约备注免重锁。
 - **独立命名空间 `agy-harness:*` 与上游无缝同步**：完整保留上游 25 个生命周期技能，不改动任何一行上游逻辑，随时可接收上游 `git merge` 更新。安装后仅需禁用独立的 `agent-skills` 插件，即可规避重复注册导致的上下文 Token 浪费。
 - **Software 1.0 零 Token 确定性门禁 (`scripts/gate-check.sh`)**：在唤醒昂贵的深度审查模型前，先通过本地脚本执行代码行数审查（< 400 行）、类型与代码格式检查、确定性单元测试以及密钥和 `debugger;` 扫描，绝不在坏代码上白花审查 Token。
 - **5 大物理隔离的专业子代理**：通过工具白名单在底层物理剥离写权限，分别运行在分级模型层（`flash` / `inherit` / `pro`），消除同上下文自我审查与过度工程。
@@ -169,10 +169,10 @@ bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-l
 
 | 任务等级 (Tier) | 适用范围与特征 | 执行流水线与人类检查点 | 预估 Token 消耗倍数 |
 |----------------|---------------|----------------------|--------------------|
-| **Tier S** | 单文件小修复、文档/样式微调、< 50 行确定性改动 | 主会话直接执行 TDD 修复 -> 运行 `scripts/gate-check.sh` -> 交付（0 契约文档，0 审查子代理） | **1.0x**（基准） |
-| **Tier M** | 常规特性开发、跨 2-6 个文件的业务逻辑重构 | `repo-scout` 搜集事实 -> 编写 `.artifacts/` 契约 -> **人类点击 `Proceed` #1（合并审查 SPEC 与 PLAN）** -> `slice-builder` 垂直切片施工 -> 运行 `gate-check.sh` -> `staff-gatekeeper` 统一复审 | **1.8x** |
-| **Tier L** | 核心架构重构、公共 API 变更、涉及鉴权/支付等高危路径 | `repo-scout` 探针 -> 编写 `SPEC.md` -> **人类点击 `Proceed` #1（锁定范围）** -> 编写 `PLAN.md` 结合 `arch-redteam` 对抗审校 -> **人类点击 `Proceed` #2（锁定方案）** -> `slice-builder` 施工 -> 运行 `gate-check.sh` -> 并行唤醒 `staff-gatekeeper` 与 `risk-specialist` | **2.6x** |
-| **Tier XL** | 包含 >= 3 个独立且互不干涉模块的大型史诗任务 | `repo-scout` 探针 -> 编写 `SPEC.md` -> **人类 `Proceed` #1** -> 子树 `PLAN.md` 结合 `arch-redteam` 审校 -> **人类 `Proceed` #2** -> 并行 `slice-builder`（通过 `Workspace: "share"` 工作区隔离） -> 运行 `gate-check.sh` -> `staff-gatekeeper` 验收 | **2.2x - 3.2x** |
+| **Tier S** | `<= 3` 文件（含测试）、约 `<= 150` 行、无高敏/接口破坏 | 主会话直接执行 TDD 修复 -> 运行 `scripts/gate-check.sh` -> 交付（0 契约文档，0 子代理） | **1.0x**（基准） |
+| **Tier M** | 常规跨文件特性开发或业务逻辑重构 | 主会话直读（按需 `repo-scout`）-> **人类点击 `Proceed` #1（确认需求与方案一致）** -> 弹性 `slice-builder`（内聚打包、`send_message` 原地续作）-> 运行 `gate-check.sh` -> 比对交付（大改动按需唤醒 `staff-gatekeeper`） | **1.3x - 1.6x** |
+| **Tier L** | 核心架构重构、公共 API 变更、涉及鉴权/支付等高危路径 | 直读 / 按需 `repo-scout` -> **人类点击 `Proceed` #1（确认需求与方案一致）** -> `arch-redteam` 校验（仅 `[BLOCKER]` 才二次打回比对）-> 弹性 `slice-builder` -> 运行 `gate-check.sh` -> 并行唤醒 `staff-gatekeeper` 与 `risk-specialist` | **2.0x - 2.4x** |
+| **Tier XL** | 包含 >= 3 个独立且互不干涉模块的大型史诗任务 | 直读 / 按需 `repo-scout` -> **人类 `Proceed` #1（确认需求与模块边界）** -> `arch-redteam` 校验（仅 `[BLOCKER]` 二次确认）-> 并行 `slice-builder`（`Workspace: "share"`）-> 运行 `gate-check.sh` -> `staff-gatekeeper` 验收 | **2.0x - 2.8x** |
 
 ---
 
@@ -182,9 +182,9 @@ bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-l
 
 | 子代理 | 模型分级 (Tier) | 工具权限与隔离机制 | 职责与产出物 |
 |--------|----------------|-------------------|--------------|
-| [repo-scout](agents/repo-scout.md) | `flash` | 只读工具集（无文件写权限，`policy: off`） | 代码库探针与官方文档取证员，输出 `<= 2K` Token 的高信噪比事实上下文简报（Context Brief） |
-| [arch-redteam](agents/arch-redteam.md) | `pro` | 只读工具集（无文件写权限，`policy: off`） | 架构与方案红队审校官。在写代码前对 `SPEC.md` 和 `PLAN.md` 进行空白上下文对抗审查，拦截过度设计与隐含假设 |
-| [slice-builder](agents/slice-builder.md) | `inherit` | 完整读写沙箱（`policy: sandbox`） | 垂直切片施工员。按切片实施 TDD 红绿重构，自测并通过 `scripts/gate-check.sh` 后方可交卷 |
+| [repo-scout](agents/repo-scout.md) | `flash` | 只读工具集（无文件写权限，`policy: off`） | 代码库探针与官方文档取证员，按需输出 `<= 2K` Token 的高信噪比事实上下文简报（Context Brief） |
+| [arch-redteam](agents/arch-redteam.md) | `pro` | 只读工具集（无文件写权限，`policy: off`） | 架构与方案红队审校官。在方案对齐后按需执行对抗校验，拦截过度设计与隐含假设 |
+| [slice-builder](agents/slice-builder.md) | `flash` | 完整读写沙箱（`policy: sandbox`） | 弹性 TDD 施工员。支持内聚打包、`send_message` 原地续作与 `gate-check.sh --fast` 快检 |
 | [staff-gatekeeper](agents/staff-gatekeeper.md) | `pro` | 只读工具集（`policy: sandbox`） | 三合一统一门禁审校官：一次性完成五轴代码质量、复杂度奥卡姆修剪以及防作弊测试变异检查，节约 ~60% 前缀开销 |
 | [risk-specialist](agents/risk-specialist.md) | `pro` | 只读工具集（`policy: sandbox`） | 安全与性能专项审计官。仅在变更触及敏感凭证、外部输入、高并发查询或渲染热路径时按需唤醒 |
 

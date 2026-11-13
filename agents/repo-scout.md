@@ -50,5 +50,5 @@ skills:
 ## Composition
 
 - **Invoke directly when:** 需要快速摸清陌生模块调用链或核验官方文档事实而不想污染主对话上下文时。
-- **Invoke via:** 主会话（由 `.agents/rules/agy-harness.md` 驱动）在 Tier M / L / XL 阶段一启动前调用，结果落盘至 `.artifacts/context-brief.md`。
+- **Invoke via:** 主会话（由 `.agents/rules/agy-harness.md` 驱动）在 Tier M / L / XL 涉及陌生大模块、跨库检索或需核验外部官方文档时按需调用，结果落盘至 `.artifacts/context-brief.md`（目标文件明确或 `<= 5` 个已知文件时主会话直读跳过）。
 - **Do not invoke from another persona.** 子智能体之间严禁互相嵌套派生。

@@ -51,31 +51,32 @@ bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-
 bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
 
-This creates:
-- `.agents/rules/agy-harness.md` — Workspace Coordinator Rule governing Tier S/M/L/XL routing and native `Proceed` (`RequestFeedback: true`) confirmation gates.
-- `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 `PreToolUse` lock that physically blocks `slice-builder` and `swarm` whenever `.artifacts/SPEC.md` or `.artifacts/PLAN.md` is created or substantively modified without user confirmation in a subsequent turn (while allowing checkbox/status updates between slices).
-- `scripts/gate-check.sh` — Software 1.0 zero-token pre-review gate.
-- `.artifacts/{context-brief.md,SPEC.md,CONSTRAINTS.md,PLAN.md}` — Local Disk SSoT contract templates, automatically added to `.gitignore` (plus `.artifacts/.gitignore`) so per-task specs and plans stay local and never pollute Git history or `gate-check.sh` diff counts.
+This creates (and refreshes `.agents/rules/agy-harness.md` + `scripts/harness-approval-gate.sh` in-place on future runs so rule/gate updates never go stale):
+- `.agents/rules/agy-harness.md` — Workspace Coordinator Rule governing Tier S/M/L/XL routing and alignment-first `Proceed` (`RequestFeedback: true`) confirmation gates.
+- `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 `PreToolUse` lock that physically blocks `slice-builder` and `swarm` whenever `.artifacts/SPEC.md` or `.artifacts/PLAN.md` core contract sections are created or substantively modified without user confirmation in a subsequent turn (while allowing checkbox/status updates and `## Implementation Notes / Guardrails` additions).
+- `scripts/gate-check.sh` — Software 1.0 zero-token pre-review gate (supports `--fast` for quick intermediate checks).
+- `.artifacts/{context-brief.md,SPEC.md,CONSTRAINTS.md,PLAN.md}` — Local Disk SSoT contract templates, automatically added to `.gitignore` (plus `.artifacts/.gitignore`) so per-task specs and plans stay local and never pollute Git history or `gate-check.sh` diff counts (preserved across re-runs unless `--force` is passed).
 
 ---
 
 ## 3. Tier S / M / L / XL Budget Routing, Human `Proceed` Gates & Subagent Matrix
 
-### Dual-Mirror Human Confirmation Protocol (Anti-Runaway Guarantee)
+### Alignment-First Human Confirmation Protocol (Anti-Runaway Guarantee)
 
 Because workspace files cannot carry `ArtifactMetadata`, the main session mirrors every contract checkpoint to `<ArtifactDir>/harness_plan.md` with `ArtifactMetadata: { UserFacing: true, RequestFeedback: true }` and stops its turn so Antigravity renders the native **`Proceed`** button:
-- **Tier M**: **1 `Proceed` click** (unified review of `SPEC.md + CONSTRAINTS.md + PLAN.md` before coding).
-- **Tier L / Tier XL**: **2 `Proceed` clicks** (Gate 1 approves `SPEC.md` scope/boundaries first; Gate 2 approves `PLAN.md` after `arch-redteam` pre-mortem convergence).
-- **Every-Edit Re-Confirmation (Enforced by `.agents/hooks.json`)**: Any substantive edit to `.artifacts/SPEC.md` or `.artifacts/PLAN.md` at any stage immediately re-locks `slice-builder` and `swarm` until the user clicks `Proceed` (or confirms) in the next turn.
+- **Tier S**: **0 `Proceed` clicks** (fast lane up to 3 files / 150 lines, zero subagents).
+- **Tier M**: **1 `Proceed` click** (align on concise `SPEC.md + PLAN.md` first -> cohesive/adaptive `slice-builder` -> `gate-check.sh`).
+- **Tier L / Tier XL**: **1 `Proceed` click by default** (align on requirements & core plan first -> post-approval `arch-redteam` check; only pauses for a 2nd `Proceed` if a `[BLOCKER]` forces changing the approved scope or public contract).
+- **Contract-Only Re-Confirmation (Enforced by `.agents/hooks.json`)**: Substantive edits to `.artifacts/SPEC.md` or `.artifacts/PLAN.md` contract sections re-lock `slice-builder` and `swarm` until confirmed, while status checkboxes and `## Implementation Notes / Guardrails` (`[RISK-NOTE]`s) pass without re-locking.
 
 ### Task Budget Tiers
 
 | Tier | Trigger Scope | Pipeline & Human `Proceed` Checkpoints | Est. Cost Multiplier |
 |------|---------------|----------------------------------------|----------------------|
-| **Tier S** | Single-file bugfix, copy/style tweak, `< 50` deterministic lines | Main session runs `debugging` / `TDD` -> `scripts/gate-check.sh` -> Done (0 contract prompts, 0 review subagents) | **1.0x** |
-| **Tier M** | Standard feature or refactor across 2-6 files | `repo-scout` -> `.artifacts/` contracts -> **`Proceed` #1 (SPEC+PLAN)** -> `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` | **1.8x** |
-| **Tier L** | Core architecture, public API change, auth/payment/critical path | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> `PLAN` + `arch-redteam` -> **`Proceed` #2** -> `slice-builder` -> `gate-check.sh` -> parallel `staff-gatekeeper` & `risk-specialist` | **2.6x** |
-| **Tier XL** | `>= 3` orthogonal modules with disjoint file subtrees | `repo-scout` -> `SPEC` -> **`Proceed` #1** -> subtree `PLAN` + `arch-redteam` -> **`Proceed` #2** -> parallel `slice-builder` (`Workspace: "share"`) or Native `Swarm` (`workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.2x-3.2x** |
+| **Tier S** | Up to 3 files (incl. tests), `<= 150` lines, no breaking API or high-risk boundary | Main session TDD -> `scripts/gate-check.sh` -> Done (0 contract prompts, 0 review subagents) | **1.0x** |
+| **Tier M** | Standard multi-file feature or refactor | Direct read (or on-demand `repo-scout`) -> **`Proceed` #1 (SPEC+PLAN)** -> adaptive `slice-builder` (cohesive default, `send_message` resume) -> `gate-check.sh` -> diff check (on-demand `staff-gatekeeper`) | **1.3x-1.6x** |
+| **Tier L** | Core architecture, public API change, auth/payment/critical path | Direct read / `repo-scout` -> **`Proceed` #1 (SPEC+PLAN)** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> adaptive `slice-builder` -> `gate-check.sh` -> parallel `staff-gatekeeper` & `risk-specialist` | **2.0x-2.4x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint file subtrees | Direct read / `repo-scout` -> **`Proceed` #1 (SPEC + subtree PLAN)** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> parallel `slice-builder` (`Workspace: "share"`) or Native `Swarm` (`workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.0x-2.8x** |
 
 ### Subagent & Model Matrix
 
@@ -83,7 +84,7 @@ Because workspace files cannot carry `ArtifactMetadata`, the main session mirror
 |--------------------------|-------------------|---------------------------|--------------------------------|-------------------|
 | [`repo-scout`](../agents/repo-scout.md) | `flash` | Gemini 3.8 Flash (Low/Med) | `context-engineering`, `source-driven-development` | **Read-only** (`commandExecutionPolicy: off`) |
 | [`arch-redteam`](../agents/arch-redteam.md) | `pro` | Gemini 4 Argon (High) / Claude Thinking | `doubt-driven-development`, `api-and-interface-design` | **Read-only** (`commandExecutionPolicy: off`) |
-| [`slice-builder`](../agents/slice-builder.md) | `inherit` | Gemini 4 Carbon (Medium) | `incremental-implementation`, `test-driven-development`, `debugging-and-error-recovery`, `frontend-ui-engineering` | Read + Write + `sandbox` |
+| [`slice-builder`](../agents/slice-builder.md) | `flash` | Gemini 3.8 Flash (Med/High) | `incremental-implementation`, `test-driven-development`, `debugging-and-error-recovery`, `frontend-ui-engineering` | Read + Write + `sandbox` |
 | [`staff-gatekeeper`](../agents/staff-gatekeeper.md) | `pro` | Gemini 4 Argon (Med/High) | `code-review-and-quality`, `code-simplification`, `test-driven-development` | **Read-only** + `sandbox` (`git diff`) |
 | [`risk-specialist`](../agents/risk-specialist.md) | `pro` | Gemini 4 Argon (High) | `security-and-hardening`, `performance-optimization`, `browser-testing-with-devtools` | **Read-only** + `sandbox` |
 
