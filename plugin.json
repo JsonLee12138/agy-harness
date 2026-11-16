@@ -1,8 +1,8 @@
 {
   "name": "agy-harness",
   "displayName": "AGY Harness",
-  "version": "0.2.0",
-  "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity, bundling 25 upstream lifecycle skills, /agy-harness:harness-init, Software 1.0 gates, and 5 physically isolated subagents.",
+  "version": "0.3.0",
+  "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity, bundling 25 upstream lifecycle skills, /agy-harness:harness-init, dual Software 1.0 gates, and 3 lean physically isolated subagents.",
   "logo": "assets/logo.svg",
   "author": {
     "name": "JsonLee12138",
@@ -11,8 +11,8 @@
   "homepage": "https://github.com/JsonLee12138/agy-harness",
   "repository": "https://github.com/JsonLee12138/agy-harness",
   "suggestedPrompts": [
-    "Run /agy-harness:harness-init to register project rules, gate-check.sh, and .artifacts contracts",
-    "Plan and implement a Tier M feature using repo-scout, slice-builder, and staff-gatekeeper",
+    "Run /agy-harness:harness-init to register always_on project rules, dual hooks, gate-check.sh, and .artifacts contracts",
+    "Plan and implement a Tier M/L feature using native discovery, slice-builder, and 4-in-1 staff-gatekeeper",
     "Stress-test SPEC.md and PLAN.md with arch-redteam before starting Tier L/XL implementation"
   ]
 }
