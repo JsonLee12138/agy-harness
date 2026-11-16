@@ -5,8 +5,8 @@
 Instead of manually invoking skills one by one—or letting a single polluted context review its own code—`agy-harness` enforces:
 1. **Disk SSoT Contracts (`.artifacts/`)**: `context-brief.md`, `SPEC.md`, `CONSTRAINTS.md`, and `PLAN.md`.
 2. **Software 1.0 Zero-Token Hard Gate (`scripts/gate-check.sh`)**: Diff-size check, typecheck/lint, deterministic tests, and secret/`debugger;` scan before spending review tokens.
-3. **Dual-Layer Rules + `/agy-harness:harness-init` Skill**: Replaces the deprecated UI `mainAgent` switcher by registering `.agents/rules/agy-harness.md` per repository, leaving uninitialized workspaces untouched.
-4. **5 Physically Isolated Subagents (`agents/*.md`)**: Hardware-enforced read-only tool allowlists and heterogeneous `flash` / `inherit` / `pro` model tiering.
+3. **Dual-Layer `always_on` Rules & Dual PreToolUse Hooks**: Registers `.agents/rules/agy-harness.md` (`trigger: always_on`), `scripts/harness-approval-gate.sh`, and `scripts/harness-source-edit-guard.sh` per repository, leaving uninitialized workspaces untouched.
+4. **3 Lean Physically Isolated Subagents (`agents/*.md`)**: Hardware-enforced read-only tool allowlists, `model: inherit` + `mcpServers: []` zero-tax cold starts, 4-in-1 `staff-gatekeeper`, and per-slice closed-loop `send_message` reuse + `manage_subagents(kill)` teardown.
 
 ---
 
@@ -47,13 +47,13 @@ Or run the deterministic bootstrap script directly:
 # Recommended when agy-harness plugin is installed globally:
 bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-project
 
-# Standalone mode (also copies the 5 subagents into <your-project>/.agents/agents/):
+# Standalone mode (also copies the 3 core subagents into <your-project>/.agents/agents/):
 bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
 
-This creates (and refreshes `.agents/rules/agy-harness.md` + `scripts/harness-approval-gate.sh` in-place on future runs so rule/gate updates never go stale):
-- `.agents/rules/agy-harness.md` — Workspace Coordinator Rule governing Tier S/M/L/XL routing and alignment-first `Proceed` (`RequestFeedback: true`) confirmation gates.
-- `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 `PreToolUse` lock that physically blocks `slice-builder` and `swarm` whenever `.artifacts/SPEC.md` or `.artifacts/PLAN.md` core contract sections are created or substantively modified without user confirmation in a subsequent turn (while allowing checkbox/status updates and `## Implementation Notes / Guardrails` additions).
+This creates (and refreshes `.agents/rules/agy-harness.md`, `scripts/harness-approval-gate.sh`, `scripts/harness-source-edit-guard.sh`, and any existing `.agents/agents/` files in-place on future runs so updates never go stale):
+- `.agents/rules/agy-harness.md` — `trigger: always_on` Workspace Coordinator Rule governing Tier S/M/L/XL routing, Zero-CRG native discovery, per-slice closed loops, and alignment-first `Proceed` (`RequestFeedback: true`) confirmation gates.
+- `.agents/hooks.json` + `scripts/harness-approval-gate.sh` + `scripts/harness-source-edit-guard.sh` — Software 1.0 `PreToolUse` dual locks: blocks `slice-builder` and `swarm` on unconfirmed `.artifacts/SPEC.md` / `PLAN.md` edits (allowing checkboxes & Guardrails) and prevents parent source/test edits once contracts are active or changes exceed Tier S (`<= 3` files, `<= 150` lines).
 - `scripts/gate-check.sh` — Software 1.0 zero-token pre-review gate (supports `--fast` for quick intermediate checks).
 - `.artifacts/{context-brief.md,SPEC.md,CONSTRAINTS.md,PLAN.md}` — Local Disk SSoT contract templates, automatically added to `.gitignore` (plus `.artifacts/.gitignore`) so per-task specs and plans stay local and never pollute Git history or `gate-check.sh` diff counts (preserved across re-runs unless `--force` is passed).
 
@@ -73,24 +73,24 @@ Because workspace files cannot carry `ArtifactMetadata`, the main session mirror
 
 | Tier | Trigger Scope | Pipeline & Human `Proceed` Checkpoints | Est. Cost Multiplier |
 |------|---------------|----------------------------------------|----------------------|
-| **Tier S** | Up to 3 files (incl. tests), `<= 150` lines, no breaking API or high-risk boundary | Main session TDD -> `scripts/gate-check.sh` -> Done (0 contract prompts, 0 review subagents) | **1.0x** |
-| **Tier M** | Standard multi-file feature or refactor | Direct read (or on-demand `repo-scout`) -> **`Proceed` #1 (SPEC+PLAN)** -> adaptive `slice-builder` (cohesive default, `send_message` resume) -> `gate-check.sh` -> diff check (on-demand `staff-gatekeeper`) | **1.3x-1.6x** |
-| **Tier L** | Core architecture, public API change, auth/payment/critical path | Direct read / `repo-scout` -> **`Proceed` #1 (SPEC+PLAN)** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> adaptive `slice-builder` -> `gate-check.sh` -> parallel `staff-gatekeeper` & `risk-specialist` | **2.0x-2.4x** |
-| **Tier XL** | `>= 3` orthogonal modules with disjoint file subtrees | Direct read / `repo-scout` -> **`Proceed` #1 (SPEC + subtree PLAN)** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> parallel `slice-builder` (`Workspace: "share"`) or Native `Swarm` (`workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.0x-2.8x** |
+| **Tier S** | Up to 3 files (incl. tests), `<= 150` lines, no breaking API or high-risk boundary (`.artifacts/` unactivated) | Main session TDD -> `scripts/gate-check.sh` -> Done (0 contract prompts, 0 subagents) | **1.0x** |
+| **Tier M** | Standard multi-file feature or refactor | Native parallel read (Zero CRG) -> **`Proceed` #1 (SPEC+PLAN)** -> cohesive `slice-builder` (`send_message` closed loop) -> `gate-check.sh` -> on-demand 4-in-1 `staff-gatekeeper` -> `kill` | **1.3x-1.6x** |
+| **Tier L** | Core architecture, public API change, auth/payment/critical path | Native parallel read (Zero CRG) -> **`Proceed` #1 (SPEC+PLAN)** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`, then `kill`) -> per-slice closed loop (`slice-builder` -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` via `send_message` -> `kill` on `GO`) | **2.0x-2.4x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint file subtrees | Native parallel read (Zero CRG) -> **`Proceed` #1 (SPEC + subtree PLAN)** -> `arch-redteam` (then `kill`) -> parallel `slice-builder` (`Workspace: "share"`) or Native `Swarm` (`workspace: "share"`) -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` | **2.0x-2.8x** |
 
 ### Subagent & Model Matrix
 
-| Subagent (`agents/*.md`) | YAML `model` Tier | Recommended Model Mapping | Mounted `agy-harness:*` Skills | Permission Policy |
-|--------------------------|-------------------|---------------------------|--------------------------------|-------------------|
-| [`repo-scout`](../agents/repo-scout.md) | `flash` | Gemini 3.8 Flash (Low/Med) | `context-engineering`, `source-driven-development` | **Read-only** (`commandExecutionPolicy: off`) |
-| [`arch-redteam`](../agents/arch-redteam.md) | `pro` | Gemini 4 Argon (High) / Claude Thinking | `doubt-driven-development`, `api-and-interface-design` | **Read-only** (`commandExecutionPolicy: off`) |
-| [`slice-builder`](../agents/slice-builder.md) | `flash` | Gemini 3.8 Flash (Med/High) | `incremental-implementation`, `test-driven-development`, `debugging-and-error-recovery`, `frontend-ui-engineering` | Read + Write + `sandbox` |
-| [`staff-gatekeeper`](../agents/staff-gatekeeper.md) | `pro` | Gemini 4 Argon (Med/High) | `code-review-and-quality`, `code-simplification`, `test-driven-development` | **Read-only** + `sandbox` (`git diff`) |
-| [`risk-specialist`](../agents/risk-specialist.md) | `pro` | Gemini 4 Argon (High) | `security-and-hardening`, `performance-optimization`, `browser-testing-with-devtools` | **Read-only** + `sandbox` |
+| Subagent (`agents/*.md`) | YAML `model` Tier | MCP Isolation | Mounted `agy-harness:*` Skills | Permission Policy |
+|--------------------------|-------------------|---------------|--------------------------------|-------------------|
+| [`arch-redteam`](../agents/arch-redteam.md) | `inherit` | `mcpServers: []` | `doubt-driven-development`, `api-and-interface-design` | **Read-only** (`commandExecutionPolicy: off`) |
+| [`slice-builder`](../agents/slice-builder.md) | `inherit` | `mcpServers: []` | `incremental-implementation`, `test-driven-development`, `debugging-and-error-recovery`, `frontend-ui-engineering` | Read + Write + `sandbox` |
+| [`staff-gatekeeper`](../agents/staff-gatekeeper.md) | `inherit` | `mcpServers: []` | `code-review-and-quality`, `code-simplification`, `test-driven-development`, `security-and-hardening`, `performance-optimization` | **Read-only** + `sandbox` (`git diff`) |
+
+> **Per-Slice Closed-Loop & Empirical Basis**: `slice-builder` and `staff-gatekeeper` stay alive via `send_message` across gate fixes and `NO-GO` rework until Slice `N` passes `GO`, then are immediately terminated via `manage_subagents(Action="kill")` before starting a clean-context Slice `N+1`. Controlled VaultMesh A/B benchmarks showed Zero-CRG native search outperformed CRG by ~47% wall-clock time (`478.61s` vs `703.52s`), and uniform `model: inherit` outperformed tiered `pro`/`flash` (`652.54s` 6/6 pass vs `1200.03s` timeout).
 
 ### Subagent 5-Second Local Command Guardrail & `[HOST_CMD_REQUEST]` Delegation
 
-To prevent sandboxed subagents (`slice-builder`, `staff-gatekeeper`, `risk-specialist`) from deadlocking on Docker sockets, network fetches, interactive prompts, or long-running processes:
+To prevent sandboxed subagents (`slice-builder`, `staff-gatekeeper`) from deadlocking on Docker sockets, network fetches, interactive prompts, or long-running processes:
 - **5-Second Local Short-Command Boundary**: Subagents may only run deterministic, offline, non-interactive workspace checks expected to exit in `<= 5s` (`WaitMsBeforeAsync <= 5000`, `IsDaemon: false`; hard cap `10s`), while `scripts/gate-check.sh` exports `CI=true GIT_PAGER=cat`, passes `git --no-pager diff`, and redirects `< /dev/null`.
 - **Zero-Exception Subagent Blacklist**: Containers/virtualization (`docker`, `docker compose`, `podman`, `kubectl`, `testcontainers`), dependency installs (`npm/pnpm/yarn/bun/pip/uv/cargo/go/flutter/pod`), daemons/watchers/interactive flags (`IsDaemon: true`, `--watch`, `tail -f`, `-it`), and slow (`> 10s`) builds or E2E suites are strictly forbidden inside subagents.
 - **`[HOST_CMD_REQUEST]` ↔ `send_message` In-Place Resume**: After finishing local edits and fast checks, the subagent batches any required heavy/container commands into a structured `## [HOST_CMD_REQUEST]` block (including the explicit absolute `cwd`, supporting Tier XL `Workspace: "share"` worktrees) and ends its turn. The top-level main session executes the command non-interactively on the host, trims output to exit code + `<= 50` key lines, and calls `send_message(Recipient: "<conversationId>")` to resume the **same** subagent in-place (`<= 2` retry rounds; `slice-builder` reports `DELEGATED_TO_HOST` upon pass).

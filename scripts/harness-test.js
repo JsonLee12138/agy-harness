@@ -10,11 +10,9 @@ const { execFileSync, spawn } = require('node:child_process');
 const ROOT = path.resolve(__dirname, '..');
 
 const EXPECTED_SUBAGENTS = {
-  'repo-scout': { model: 'flash', policy: 'off', writable: false },
-  'arch-redteam': { model: 'pro', policy: 'off', writable: false },
-  'slice-builder': { model: 'flash', policy: 'sandbox', writable: true },
-  'staff-gatekeeper': { model: 'pro', policy: 'sandbox', writable: false },
-  'risk-specialist': { model: 'pro', policy: 'sandbox', writable: false },
+  'arch-redteam': { model: 'inherit', mcpServers: '[]', policy: 'off', writable: false },
+  'slice-builder': { model: 'inherit', mcpServers: '[]', policy: 'sandbox', writable: true },
+  'staff-gatekeeper': { model: 'inherit', mcpServers: '[]', policy: 'sandbox', writable: false },
 };
 
 const WRITE_TOOLS = new Set([
@@ -73,6 +71,8 @@ test('plugin manifests use agy-harness identity and include logo + lightweight p
     'security-auditor.md',
     'test-engineer.md',
     'web-performance-auditor.md',
+    'repo-scout.md',
+    'risk-specialist.md',
   ];
   for (const file of legacyPersonas) {
     assert.ok(!fs.existsSync(path.join(ROOT, 'agents', file)), `legacy persona ${file} must not stay in agents/`);
@@ -83,7 +83,7 @@ test('plugin manifests use agy-harness identity and include logo + lightweight p
   }
 });
 
-test('agents/ exposes exactly the 5 Harness subagents with agy-harness:* skills and physical read-write separation', () => {
+test('agents/ exposes exactly the 3 Lean Harness subagents with model: inherit, mcpServers: [], agy-harness:* skills, and physical read-write separation', () => {
   const agentFiles = fs
     .readdirSync(path.join(ROOT, 'agents'))
     .filter((f) => f.endsWith('.md') && !/^readme\.md$/i.test(f))
@@ -104,7 +104,19 @@ test('agents/ exposes exactly the 5 Harness subagents with agy-harness:* skills 
     assert.equal(fm.mainAgent, 'false', `${name} must have mainAgent: false`);
     assert.equal(fm.subagent, 'true', `${name} must have subagent: true`);
     assert.equal(fm.model, spec.model, `${name} model mismatch`);
+    assert.equal(fm.mcpServers, spec.mcpServers, `${name} must explicitly disable mcpServers ([])`);
     assert.equal(fm.commandExecutionPolicy, spec.policy, `${name} commandExecutionPolicy mismatch`);
+
+    if (name === 'staff-gatekeeper') {
+      assert.ok(
+        fm.skills.includes('agy-harness:security-and-hardening'),
+        '4-in-1 staff-gatekeeper must include agy-harness:security-and-hardening',
+      );
+      assert.ok(
+        fm.skills.includes('agy-harness:performance-optimization'),
+        '4-in-1 staff-gatekeeper must include agy-harness:performance-optimization',
+      );
+    }
 
     assert.ok(fm.skills.length > 0, `${name} must mount at least one skill`);
     for (const skillRef of fm.skills) {
@@ -196,6 +208,7 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
     '.agents/hooks.json',
     'scripts/gate-check.sh',
     'scripts/harness-approval-gate.sh',
+    'scripts/harness-source-edit-guard.sh',
     '.artifacts/.gitignore',
     '.artifacts/context-brief.md',
     '.artifacts/SPEC.md',
@@ -205,6 +218,11 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
   for (const rel of expectedPaths) {
     assert.ok(fs.existsSync(path.join(targetDir, rel)), `Expected scaffolded file ${rel}`);
   }
+  assert.match(
+    fs.readFileSync(path.join(targetDir, '.agents', 'rules', 'agy-harness.md'), 'utf8'),
+    /^---\r?\ntrigger:\s*always_on\r?\n---/,
+    '.agents/rules/agy-harness.md must declare trigger: always_on frontmatter for CLI auto-injection',
+  );
 
   // Verify .gitignore handles missing trailing newline, stays idempotent across re-runs, and hides .artifacts from git status
   const gitignorePath = path.join(targetDir, '.gitignore');
@@ -235,11 +253,21 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
   fs.writeFileSync(gateDstPath, '#!/usr/bin/env bash\necho custom-gate\n');
   const approvalGateDstPath = path.join(targetDir, 'scripts', 'harness-approval-gate.sh');
   fs.writeFileSync(approvalGateDstPath, '#!/bin/bash\n# outdated gate\n');
+  const sourceGuardDstPath = path.join(targetDir, 'scripts', 'harness-source-edit-guard.sh');
+  fs.writeFileSync(sourceGuardDstPath, '#!/bin/bash\n# outdated guard\n');
+
+  // Seed legacy local agents directory to verify automatic upgrade & retired persona cleanup without --force
+  const localAgentsDir = path.join(targetDir, '.agents', 'agents');
+  fs.mkdirSync(localAgentsDir, { recursive: true });
+  fs.writeFileSync(path.join(localAgentsDir, 'slice-builder.md'), '# outdated local builder\n');
+  fs.writeFileSync(path.join(localAgentsDir, 'repo-scout.md'), '# retired scout\n');
+  fs.writeFileSync(path.join(localAgentsDir, 'risk-specialist.md'), '# retired risk specialist\n');
 
   const hooksPath = path.join(targetDir, '.agents', 'hooks.json');
   const existingHooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
   existingHooks['custom-user-hook'] = { PostToolUse: [{ matcher: 'run_command', hooks: [{ command: 'echo ok' }] }] };
   delete existingHooks['harness-contract-approval-gate'];
+  delete existingHooks['harness-parent-source-edit-guard'];
   fs.writeFileSync(hooksPath, JSON.stringify(existingHooks, null, 2) + '\n');
 
   execFileSync('bash', [initScript, targetDir], { encoding: 'utf8' });
@@ -255,14 +283,30 @@ test('init-harness.sh scaffolds rules, gate-check.sh, and .artifacts idempotentl
     fs.readFileSync(path.join(ROOT, 'scripts', 'harness-approval-gate.sh'), 'utf8'),
     'init-harness.sh must replace outdated scripts/harness-approval-gate.sh without --force',
   );
+  assert.equal(
+    fs.readFileSync(sourceGuardDstPath, 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'scripts', 'harness-source-edit-guard.sh'), 'utf8'),
+    'init-harness.sh must replace outdated scripts/harness-source-edit-guard.sh without --force',
+  );
+  assert.equal(
+    fs.readFileSync(path.join(localAgentsDir, 'slice-builder.md'), 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'agents', 'slice-builder.md'), 'utf8'),
+    'init-harness.sh must refresh existing .agents/agents/*.md without --force',
+  );
+  assert.ok(!fs.existsSync(path.join(localAgentsDir, 'repo-scout.md')), 'retired repo-scout.md must be removed from .agents/agents/');
+  assert.ok(!fs.existsSync(path.join(localAgentsDir, 'risk-specialist.md')), 'retired risk-specialist.md must be removed from .agents/agents/');
   const mergedHooks = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
   assert.ok(mergedHooks['custom-user-hook'], 'Existing custom-user-hook must be preserved in .agents/hooks.json');
   assert.ok(
     mergedHooks['harness-contract-approval-gate'],
     'harness-contract-approval-gate must be merged into existing .agents/hooks.json',
   );
+  assert.ok(
+    mergedHooks['harness-parent-source-edit-guard'],
+    'harness-parent-source-edit-guard must be merged into existing .agents/hooks.json',
+  );
 
-  // Verify --with-local-agents copies the 5 subagents and --force refreshes templates
+  // Verify --with-local-agents copies the 3 core subagents and --force refreshes templates
   execFileSync('bash', [initScript, targetDir, '--with-local-agents', '--force'], { encoding: 'utf8' });
   assert.notEqual(fs.readFileSync(specPath, 'utf8'), '# Custom Spec Locked\n');
   for (const name of Object.keys(EXPECTED_SUBAGENTS)) {
@@ -312,8 +356,8 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
     fs.utimesSync(filePath, dt, dt);
   };
 
-  // 1. Read-only subagents (repo-scout, arch-redteam, staff-gatekeeper) are ALWAYS allowed
-  assert.equal(runHook('invoke_subagent', { TypeName: 'repo-scout' }).decision, 'allow');
+  // 1. Read-only subagents (arch-redteam, staff-gatekeeper) are ALWAYS allowed
+  assert.equal(runHook('invoke_subagent', { TypeName: 'staff-gatekeeper' }).decision, 'allow');
   assert.equal(runHook('invoke_subagent', { TypeName: 'arch-redteam' }).decision, 'allow');
   assert.equal(runHook('swarm', { action: 'status' }).decision, 'allow');
 
@@ -493,6 +537,7 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
   );
   const activeRule = fs.readFileSync(path.join(ROOT, '.agents', 'rules', 'agy-harness.md'), 'utf8');
   assert.equal(activeRule, tplRule, '.agents/rules/agy-harness.md must match harness-rule-template.md');
+  assert.match(tplRule, /^---\r?\ntrigger:\s*always_on\r?\n---/);
   assert.match(tplRule, /RequestFeedback:\s*true/);
   assert.match(tplRule, /harness_plan\.md/);
   assert.match(tplRule, /<= 3` 个文件/);
@@ -500,6 +545,11 @@ test('harness-approval-gate.sh enforces human confirmation on SPEC/PLAN creation
   assert.match(tplRule, /确认需求与(核心)?方案完全符合/);
   assert.match(tplRule, /弹性 `slice-builder`/);
   assert.match(tplRule, /send_message\(Recipient:/);
+  assert.match(tplRule, /manage_subagents\(Action="kill"/);
+  assert.match(tplRule, /manage_subagents\(Action="list"\)/);
+  assert.match(tplRule, /严禁调用 CRG/);
+  assert.match(tplRule, /harness-source-edit-guard\.sh/);
+  assert.match(tplRule, /4 合 1 `staff-gatekeeper`/);
 });
 
 test('subagents enforce 5s local command guardrails and [HOST_CMD_REQUEST] <-> send_message delegation protocol', () => {
@@ -517,8 +567,8 @@ test('subagents enforce 5s local command guardrails and [HOST_CMD_REQUEST] <-> s
   assert.match(sliceBuilder, /Purpose & expected signal:/);
   assert.match(sliceBuilder, /PASS \| DELEGATED_TO_HOST \| BLOCKED/);
 
-  // AC-2: staff-gatekeeper & risk-specialist read-only short-command restriction and [HOST_CMD_REQUEST] fallback
-  for (const reviewer of ['staff-gatekeeper.md', 'risk-specialist.md']) {
+  // AC-2: 4-in-1 staff-gatekeeper read-only short-command restriction and [HOST_CMD_REQUEST] fallback
+  for (const reviewer of ['staff-gatekeeper.md']) {
     const content = fs.readFileSync(path.join(ROOT, 'agents', reviewer), 'utf8');
     assert.match(content, /WaitMsBeforeAsync\s*<=\s*5000/, `${reviewer} must cap WaitMsBeforeAsync <= 5000`);
     assert.match(content, /git status/, `${reviewer} must scope run_command to fast read-only git checks`);
@@ -684,4 +734,97 @@ test('gate-check.sh --fast skips full npm test while running test:fast and Gate 
     () => execFileSync('bash', [gateScript, '--fast'], { cwd: repoDir, encoding: 'utf8', stdio: 'pipe' }),
     /Potential secret or debugger statement detected/,
   );
+});
+
+test('harness-source-edit-guard.sh enforces parent delegation outside unactivated Tier S while allowing subagents and .artifacts/.agents', (t) => {
+  const baseDir = makeTempDir('agy-harness-source-guard-');
+  const wsDir = path.join(baseDir, 'real-repo');
+  const wsLink = path.join(baseDir, 'link-repo');
+  t.after(() => fs.rmSync(baseDir, { recursive: true, force: true }));
+
+  fs.mkdirSync(wsDir, { recursive: true });
+  fs.symlinkSync(wsDir, wsLink);
+
+  execFileSync('git', ['init', '-q'], { cwd: wsDir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: wsDir });
+  execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: wsDir });
+  fs.mkdirSync(path.join(wsDir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(wsDir, 'src', 'a.js'), 'export const a = 1;\n');
+  execFileSync('git', ['add', '.'], { cwd: wsDir });
+  execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: wsDir });
+
+  const initScript = path.join(ROOT, 'scripts', 'init-harness.sh');
+  execFileSync('bash', [initScript, wsDir], { encoding: 'utf8' });
+
+  const guardScript = path.join(wsDir, 'scripts', 'harness-source-edit-guard.sh');
+  const parentTranscript = path.join(baseDir, 'parent-transcript.jsonl');
+  const subagentTranscript = path.join(baseDir, 'subagent-transcript.jsonl');
+  fs.writeFileSync(parentTranscript, JSON.stringify({ step_index: 0, source: 'USER_EXPLICIT', type: 'USER_INPUT' }) + '\n');
+  fs.writeFileSync(subagentTranscript, JSON.stringify({ step_index: 0, source: 'SYSTEM', type: 'SYSTEM_MESSAGE' }) + '\n');
+
+  const runGuard = (toolName, args, opts = {}) => {
+    const payload = JSON.stringify({
+      workspacePaths: [opts.workspacePath || wsLink],
+      transcriptPath: opts.transcriptPath || parentTranscript,
+      toolCall: { name: toolName, args },
+    });
+    const out = execFileSync('bash', [guardScript], {
+      cwd: path.join(wsDir, '.agents'),
+      input: payload,
+      encoding: 'utf8',
+    });
+    return JSON.parse(out.trim());
+  };
+
+  // 1. Non-edit tools and paths outside repoRoot are allowed
+  assert.equal(runGuard('read_file', { Path: path.join(wsDir, 'src', 'a.js') }).decision, 'allow');
+  assert.equal(runGuard('write_file', { Path: path.join(baseDir, 'outside.md'), Content: 'ok\n' }).decision, 'allow');
+
+  // 2. Tier S (<= 3 files & <= 150 lines) when .artifacts/ is still unfilled template is allowed
+  assert.equal(runGuard('edit_file', { Path: 'src/a.js', Target: '1', Replacement: '2' }).decision, 'allow');
+
+  // Writing a single brand-new > 150-line file trips Tier S line budget even with unfilled templates
+  const bigContent = Array.from({ length: 160 }, (_, i) => `const x${i} = ${i};`).join('\n') + '\n';
+  const lineLimitRes = runGuard('write_file', { Path: 'src/big.js', Content: bigContent });
+  assert.equal(lineLimitRes.decision, 'deny');
+  assert.match(lineLimitRes.reason, /Tier S line budget/);
+
+  // 3 dirty/untracked non-harness files allow; 4th file triggers Tier S file budget deny
+  fs.writeFileSync(path.join(wsDir, 'src', 'f1.js'), 'export const f1 = 1;\n');
+  fs.writeFileSync(path.join(wsDir, 'src', 'f2.js'), 'export const f2 = 2;\n');
+  assert.equal(runGuard('write_file', { Path: 'src/f2.js', Content: 'export const f2 = 3;\n' }).decision, 'allow');
+  fs.writeFileSync(path.join(wsDir, 'src', 'f3.js'), 'export const f3 = 3;\n');
+  const fileLimitRes = runGuard('write_file', { Path: 'src/f4.js', Content: 'export const f4 = 4;\n' });
+  assert.equal(fileLimitRes.decision, 'deny');
+  assert.match(fileLimitRes.reason, /Tier S file budget/);
+
+  // Clean extra untracked files and activate a real SPEC/PLAN contract
+  fs.rmSync(path.join(wsDir, 'src', 'f1.js'));
+  fs.rmSync(path.join(wsDir, 'src', 'f2.js'));
+  fs.rmSync(path.join(wsDir, 'src', 'f3.js'));
+  fs.writeFileSync(
+    path.join(wsDir, '.artifacts', 'SPEC.md'),
+    '# SPEC\n\n## 1. Objective\n- Real goal\n\n## 4. Acceptance Criteria\n- [ ] AC-1\n',
+  );
+  fs.writeFileSync(
+    path.join(wsDir, '.artifacts', 'PLAN.md'),
+    '# PLAN\n\n## Slice 1: Core API\n- **Status:** `[ ] Pending`\n',
+  );
+
+  // 3. Active contract allows .artifacts/ and .agents/ edits by parent, and allows subagents on source files
+  assert.equal(runGuard('edit_file', { Path: '.artifacts/PLAN.md', Target: 'Pending', Replacement: 'Done' }).decision, 'allow');
+  assert.equal(runGuard('edit_file', { Path: '.agents/rules/agy-harness.md', Target: 'Tier S', Replacement: 'Tier S' }).decision, 'allow');
+  assert.equal(
+    runGuard('write_to_file', { TargetFile: 'src/nested/new-file.js', Content: 'export const n = 1;\n' }, { transcriptPath: subagentTranscript }).decision,
+    'allow',
+  );
+
+  // 4. Active contract blocks parent source/scripts edits including non-existent subdirectories via symlinked workspace root
+  const blockedSrc = runGuard('write_file', { Path: 'src/nested/new-file.js', Content: 'export const n = 1;\n' });
+  assert.equal(blockedSrc.decision, 'deny');
+  assert.match(blockedSrc.reason, /Active contract found/);
+
+  const blockedScripts = runGuard('edit_file', { Path: 'scripts/gate-check.sh', Target: 'Gate', Replacement: 'Gate' });
+  assert.equal(blockedScripts.decision, 'deny');
+  assert.match(blockedScripts.reason, /scripts\/gate-check\.sh/);
 });

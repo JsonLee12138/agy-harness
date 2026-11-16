@@ -31,11 +31,11 @@ Default AI coding agents take the path of least resistance: single-turn executio
 
 `agy-harness` transforms agent interactions into a deterministic **Disk SSoT (`.artifacts/`) + Software 1.0 Gate (`scripts/gate-check.sh`) + Physically Isolated Fresh-Context Subagent** state machine:
 
-- **One-step workspace bootstrap (`/agy-harness:harness-init`)**: Registers `.agents/rules/agy-harness.md` (replacing the deprecated UI `mainAgent` switcher), `.agents/hooks.json` + `scripts/harness-approval-gate.sh` (Software 1.0 `PreToolUse` contract approval lock), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`.
-- **Alignment-first `Proceed` confirmation gates**: Aligns requirements and core plan with the user first (`1 Proceed` click by default across Tier M/L/XL), runs post-approval `arch-redteam` validation for Tier L/XL (pausing again only when a `[BLOCKER]` alters core scope or public contracts), and lets non-contract guardrails and status updates proceed without re-locking.
+- **One-step workspace bootstrap (`/agy-harness:harness-init`)**: Registers `.agents/rules/agy-harness.md` (`trigger: always_on` for both IDE & CLI), `.agents/hooks.json` + dual Software 1.0 `PreToolUse` guards (`scripts/harness-approval-gate.sh` & `scripts/harness-source-edit-guard.sh`), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`.
+- **Alignment-first `Proceed` confirmation gates**: Aligns requirements and core plan with the user first (`1 Proceed` click by default across Tier M/L/XL), runs post-approval `arch-redteam` validation for Tier L/XL (then kills it cleanly, pausing again only when a `[BLOCKER]` alters core scope or public contracts), and lets non-contract guardrails and status updates proceed without re-locking.
 - **Self-contained `agy-harness:*` namespace**: Ships all 25 upstream skills untouched (ready for seamless upstream `git merge`) plus `harness-init`. Disable standalone `agent-skills` after installing to avoid duplicate skill-catalog token overhead.
-- **Software 1.0 zero-token gates (`scripts/gate-check.sh`)**: Enforces diff size limits (< 400 lines), typecheck/lint, deterministic tests, and secret / `debugger;` scans before waking costly `pro` review subagents.
-- **5 physically isolated subagents**: Read-only hardware separation for fact probes and review, routing tasks across heterogeneous model tiers (`flash` / `inherit` / `pro`).
+- **Software 1.0 zero-token gates (`scripts/gate-check.sh`)**: Enforces diff size limits (< 400 lines), typecheck/lint, deterministic tests, and secret / `debugger;` scans before waking review subagents.
+- **3 lean physically isolated subagents (`model: inherit`, `mcpServers: []`)**: Native parallel direct discovery (Zero CRG), read-only 4-in-1 `staff-gatekeeper`, and per-slice closed-loop `send_message` reuse followed by `manage_subagents(kill)` before starting the next clean-context slice.
 - **Tier S / M / L / XL budget routing**: Scales from zero-subagent Tier S fixes up to Tier XL parallel worktree sharding (`Workspace: "share"` / Native `Swarm`).
 
 ```
@@ -155,9 +155,9 @@ bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-
 bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
 
-This sets up:
-1. `.agents/rules/agy-harness.md` — Workspace coordinator rule with Tier S/M/L/XL routing and human approval gates.
-2. `.agents/hooks.json` + `scripts/harness-approval-gate.sh` — Software 1.0 approval lock before code execution.
+This sets up (and upgrades harness rules, hooks, guards, and any local `.agents/agents/` in-place on future runs):
+1. `.agents/rules/agy-harness.md` — `trigger: always_on` coordinator rule with Tier S/M/L/XL routing, Zero-CRG native discovery, per-slice closed-loop lifecycles, and human approval gates.
+2. `.agents/hooks.json` + `scripts/harness-approval-gate.sh` + `scripts/harness-source-edit-guard.sh` — Dual Software 1.0 `PreToolUse` locks blocking unconfirmed execution and parent source edits outside unactivated Tier S.
 3. `scripts/gate-check.sh` — Zero-token pre-commit quality gate.
 4. `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md` — Local gitignored contract templates.
 
@@ -169,26 +169,24 @@ This sets up:
 
 | Tier | Scope | Pipeline & Human Checkpoints | Cost Multiplier |
 |------|-------|------------------------------|-----------------|
-| **Tier S** | `<= 3` files (incl. tests), `<= 150` lines, low risk | Main session TDD -> `gate-check.sh` -> Done (0 subagents, 0 prompts) | **1.0x** |
-| **Tier M** | Standard feature or refactor | Direct read (or on-demand `repo-scout`) -> **`Proceed` #1** -> adaptive `slice-builder` -> `gate-check.sh` -> diff check (on-demand `staff-gatekeeper`) | **1.3x - 1.6x** |
-| **Tier L** | Architecture change, public API, auth/payment | Direct read / `repo-scout` -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> adaptive `slice-builder` -> `gate-check.sh` -> `staff-gatekeeper` + `risk-specialist` | **2.0x - 2.4x** |
-| **Tier XL** | `>= 3` orthogonal modules with disjoint trees | Direct read / `repo-scout` -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`) -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> `staff-gatekeeper` | **2.0x - 2.8x** |
+| **Tier S** | `<= 3` files (incl. tests), `<= 150` lines, low risk (`.artifacts/` unactivated) | Main session TDD -> `gate-check.sh` -> Done (0 subagents, 0 prompts) | **1.0x** |
+| **Tier M** | Standard feature or refactor | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `slice-builder` (`send_message` closed loop) -> `gate-check.sh` -> on-demand 4-in-1 `staff-gatekeeper` -> `kill` | **1.3x - 1.6x** |
+| **Tier L** | Architecture change, public API, auth/payment | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`, then `kill`) -> per-slice closed loop (`slice-builder` -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` on `GO`) | **2.0x - 2.4x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint trees | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `arch-redteam` (then `kill`) -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` | **2.0x - 2.8x** |
 
 ---
 
 ## Harness Subagents
 
-Five physically isolated subagents orchestrated by `.agents/rules/agy-harness.md`:
+Three lean physically isolated subagents (`model: inherit`, `mcpServers: []`) orchestrated in per-slice closed loops by `.agents/rules/agy-harness.md`:
 
-| Subagent | Model Tier | Tools & Isolation | Role |
-|----------|------------|-------------------|------|
-| [repo-scout](agents/repo-scout.md) | `flash` | Read-only (`off`) | Fast codebase and official-doc fact probe producing concise (`<= 2K` tokens) Context Briefs |
-| [arch-redteam](agents/arch-redteam.md) | `pro` | Read-only (`off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails |
-| [slice-builder](agents/slice-builder.md) | `flash` | Read + Write (`sandbox`) | Cohesive/adaptive TDD builder; supports `gate-check.sh --fast`, `send_message` resume, and worktree sharding |
-| [staff-gatekeeper](agents/staff-gatekeeper.md) | `pro` | Read-only (`sandbox`) | 3-in-1 unified post-gate reviewer: five-axis quality, complexity pruning, and anti-fake-test check |
-| [risk-specialist](agents/risk-specialist.md) | `pro` | Read-only (`sandbox`) | Conditional deep auditor for auth, external input, high-traffic paths, and performance hotspots |
+| Subagent | Model & MCP | Tools & Isolation | Role |
+|----------|-------------|-------------------|------|
+| [arch-redteam](agents/arch-redteam.md) | `inherit` (`mcpServers: []`) | Read-only (`off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails (killed right after logging Guardrails) |
+| [slice-builder](agents/slice-builder.md) | `inherit` (`mcpServers: []`) | Read + Write (`sandbox`) | Cohesive TDD builder; supports `gate-check.sh --fast`, per-slice `send_message` resume, `[HOST_CMD_REQUEST]`, and worktree sharding |
+| [staff-gatekeeper](agents/staff-gatekeeper.md) | `inherit` (`mcpServers: []`) | Read-only (`sandbox`) | **4-in-1** unified post-gate reviewer: five-axis quality, complexity pruning, anti-fake-test check, and security/performance audit |
 
-> Legacy single-axis personas are safely preserved in [docs/legacy-personas/](docs/legacy-personas/).
+> Legacy single-axis and retired personas (`repo-scout`, `risk-specialist`, etc.) are safely preserved in [docs/legacy-personas/](docs/legacy-personas/).
 
 ---
 

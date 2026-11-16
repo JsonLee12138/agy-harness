@@ -1,6 +1,6 @@
 # Project Quality & Anti-Bloat Constraints (CONSTRAINTS)
 
-> Enforced by `scripts/gate-check.sh`, `arch-redteam`, `staff-gatekeeper`, and `risk-specialist`.
+> Enforced by `scripts/gate-check.sh`, `arch-redteam`, and 4-in-1 `staff-gatekeeper`.
 
 ## 1. Hard Quality Bars (Software 1.0)
 - Diff per vertical slice should stay focused (`<= 400` changed lines recommended).
@@ -10,4 +10,4 @@
 
 ## 2. Anti-Overengineering Contract (Software 2.0 Guardrail)
 - Prefer the boring, obvious solution that satisfies `.artifacts/SPEC.md` at current scale.
-- Reviewers (`arch-redteam`, `staff-gatekeeper`, `risk-specialist`) MUST NOT demand extra middleware, distributed locks, or speculative abstractions beyond `SPEC.md` unless proving a deterministic crash, security exploit, or data-loss path.
+- Reviewers (`arch-redteam` and `staff-gatekeeper`) MUST NOT demand extra middleware, distributed locks, or speculative abstractions beyond `SPEC.md` unless proving a deterministic crash, security exploit, or data-loss path.

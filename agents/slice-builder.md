@@ -3,7 +3,7 @@ name: slice-builder
 description: "垂直切片施工员。基于锁定的磁盘契约(.artifacts/)按切片执行 TDD 红绿重构实现，并通过 Software 1.0 脚本门禁自检。"
 mainAgent: false
 subagent: true
-model: flash
+model: inherit
 commandExecutionPolicy: sandbox
 tools:
   - view_file
@@ -14,6 +14,7 @@ tools:
   - replace_file_content
   - multi_replace_file_content
   - run_command
+mcpServers: []
 skills:
   - agy-harness:incremental-implementation
   - agy-harness:test-driven-development
@@ -65,5 +66,5 @@ skills:
 ## Composition
 
 - **Invoke directly when:** 已有明确的任务切片说明或失败测试，需要在隔离上下文中完成 TDD 实现并通过本地脚本门禁时。
-- **Invoke via:** 主会话在契约对齐确认后按内聚工作包或必要阶段弹性调用（Tier M/L），或以 `Workspace: "share"` 并发分片调用（Tier XL）；续作衔接或审校返工优先通过 `send_message` 原地唤醒复用当前上下文（同一阻塞点最多自动返工 2 轮）。
+- **Invoke via:** 主会话在契约对齐确认后按当前 Slice 闭环调用（Tier M/L），或以 `Workspace: "share"` 并发分片调用（Tier XL）。在当前 Slice 全部门禁与审校 `GO` 过关前保持常驻，遇 `gate-check.sh` 失败、`NO-GO` 打回、`[HOST_CMD_REQUEST]` 宿主机返回或局部返工微调时一律由主会话通过 `send_message` 原地唤醒复用（同一阻塞点最多自动返工 2 轮）；当前 Slice 彻底 `GO` 后由主会话 `manage_subagents(Action="kill")` 销毁，再为下一 Slice 启动全新干净上下文。
 - **Do not invoke from another persona.** 本角色禁止派生子智能体或自行跳过契约扩充需求。

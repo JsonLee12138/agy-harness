@@ -85,6 +85,7 @@ copy_always_update() {
 copy_always_update "$REF_DIR/harness-rule-template.md" "$TARGET_ABS/.agents/rules/agy-harness.md" 0644
 copy_if_needed "$PLUGIN_ROOT/scripts/gate-check.sh" "$TARGET_ABS/scripts/gate-check.sh" 0755
 copy_always_update "$PLUGIN_ROOT/scripts/harness-approval-gate.sh" "$TARGET_ABS/scripts/harness-approval-gate.sh" 0755
+copy_always_update "$PLUGIN_ROOT/scripts/harness-source-edit-guard.sh" "$TARGET_ABS/scripts/harness-source-edit-guard.sh" 0755
 copy_if_needed "$REF_DIR/context-brief-template.md" "$TARGET_ABS/.artifacts/context-brief.md" 0644
 copy_if_needed "$REF_DIR/spec-template.md" "$TARGET_ABS/.artifacts/SPEC.md" 0644
 copy_if_needed "$REF_DIR/constraints-template.md" "$TARGET_ABS/.artifacts/CONSTRAINTS.md" 0644
@@ -156,12 +157,20 @@ ensure_artifacts_gitignored() {
 
 ensure_artifacts_gitignored
 
-if [ "$WITH_LOCAL_AGENTS" = "true" ]; then
+if [ "$WITH_LOCAL_AGENTS" = "true" ] || [ -d "$TARGET_ABS/.agents/agents" ]; then
   mkdir -p "$TARGET_ABS/.agents/agents"
+  for retired_agent in repo-scout.md risk-specialist.md code-reviewer.md security-auditor.md test-engineer.md web-performance-auditor.md; do
+    if [ -f "$TARGET_ABS/.agents/agents/$retired_agent" ]; then
+      rm -f "$TARGET_ABS/.agents/agents/$retired_agent"
+      echo "REMOVED (retired agent): $TARGET_ABS/.agents/agents/$retired_agent" >&2
+    fi
+  done
   for agent_file in "$PLUGIN_ROOT"/agents/*.md; do
     [ -f "$agent_file" ] || continue
     base_name="$(basename "$agent_file")"
-    copy_always_update "$agent_file" "$TARGET_ABS/.agents/agents/$base_name" 0644
+    if [ "$WITH_LOCAL_AGENTS" = "true" ] || [ -f "$TARGET_ABS/.agents/agents/$base_name" ]; then
+      copy_always_update "$agent_file" "$TARGET_ABS/.agents/agents/$base_name" 0644
+    fi
   done
 fi
 

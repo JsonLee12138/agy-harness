@@ -30,12 +30,12 @@
     {
       "id": 1,
       "prompt": "Bootstrap AGY Harness in this repository without overwriting any existing contract files, then verify the Software 1.0 gate runs cleanly.",
-      "expected_output": "Scaffolded .agents/rules/agy-harness.md, .agents/hooks.json, executable scripts/gate-check.sh and scripts/harness-approval-gate.sh, and .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
+      "expected_output": "Scaffolded .agents/rules/agy-harness.md (with trigger: always_on), .agents/hooks.json, executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, and scripts/harness-source-edit-guard.sh, plus .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
       "files": [
         "harness-init"
       ],
       "expectations": [
-        "Creates .agents/rules/agy-harness.md, .agents/hooks.json, scripts/gate-check.sh, scripts/harness-approval-gate.sh, and the four .artifacts/ contract templates",
+        "Creates .agents/rules/agy-harness.md (with trigger: always_on), .agents/hooks.json, scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, and the four .artifacts/ contract templates",
         "Does not pass --force when preserving existing non-empty contract files",
         "Runs bash scripts/gate-check.sh and verifies ALL SOFTWARE 1.0 GATES PASSED"
       ]
