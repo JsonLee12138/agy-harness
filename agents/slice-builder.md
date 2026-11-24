@@ -6,6 +6,10 @@ subagent: true
 model: inherit
 commandExecutionPolicy: sandbox
 tools:
+  - read_file
+  - write_file
+  - edit_file
+  - create_file
   - view_file
   - list_dir
   - grep_search
@@ -14,6 +18,8 @@ tools:
   - replace_file_content
   - multi_replace_file_content
   - run_command
+hooks:
+  - ../scripts/hooks/slice-builder.hooks.json
 mcpServers: []
 skills:
   - agy-harness:incremental-implementation

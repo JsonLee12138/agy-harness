@@ -31,8 +31,16 @@ for arg in "$@"; do
   esac
 done
 
-mkdir -p "$TARGET_DIR/.agents/rules" "$TARGET_DIR/scripts" "$TARGET_DIR/.artifacts"
+mkdir -p "$TARGET_DIR/.agents/rules" "$TARGET_DIR/scripts/hooks" "$TARGET_DIR/.artifacts"
 TARGET_ABS="$(cd "$TARGET_DIR" && pwd)"
+
+TMP_AGENT_FILE=""
+cleanup_tmp() {
+  if [ -n "$TMP_AGENT_FILE" ] && [ -f "$TMP_AGENT_FILE" ]; then
+    rm -f "$TMP_AGENT_FILE"
+  fi
+}
+trap cleanup_tmp EXIT
 
 copy_if_needed() {
   local src="$1"
@@ -82,10 +90,43 @@ copy_always_update() {
   echo "${action}: $dst" >&2
 }
 
+render_local_agent() {
+  local src="$1"
+  local out="$2"
+
+  if command -v node >/dev/null 2>&1; then
+    node - "$src" "$out" <<'EOF'
+const fs = require('node:fs');
+const [, , srcPath, outPath] = process.argv;
+const raw = fs.readFileSync(srcPath, 'utf8');
+const transformed = raw.replace(/(^|[\s'":\-])\.\.\/scripts\/hooks\//gm, '$1../../scripts/hooks/');
+fs.writeFileSync(outPath, transformed);
+EOF
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "$src" "$out" <<'EOF'
+import re
+import sys
+
+src_path, out_path = sys.argv[1], sys.argv[2]
+with open(src_path, 'r', encoding='utf-8') as f:
+    raw = f.read()
+transformed = re.sub(r'(^|[\s\'":\-])\.\./scripts/hooks/', r'\1../../scripts/hooks/', raw, flags=re.MULTILINE)
+with open(out_path, 'w', encoding='utf-8') as f:
+    f.write(transformed)
+EOF
+  else
+    sed -E 's/(^|[[:space:]'\'':-])\.\.\/scripts\/hooks\//\1..\/..\/scripts\/hooks\//g' "$src" > "$out"
+  fi
+}
+
 copy_always_update "$REF_DIR/harness-rule-template.md" "$TARGET_ABS/.agents/rules/agy-harness.md" 0644
 copy_if_needed "$PLUGIN_ROOT/scripts/gate-check.sh" "$TARGET_ABS/scripts/gate-check.sh" 0755
 copy_always_update "$PLUGIN_ROOT/scripts/harness-approval-gate.sh" "$TARGET_ABS/scripts/harness-approval-gate.sh" 0755
 copy_always_update "$PLUGIN_ROOT/scripts/harness-source-edit-guard.sh" "$TARGET_ABS/scripts/harness-source-edit-guard.sh" 0755
+copy_always_update "$PLUGIN_ROOT/scripts/harness-lifecycle-hook.sh" "$TARGET_ABS/scripts/harness-lifecycle-hook.sh" 0755
+copy_always_update "$PLUGIN_ROOT/scripts/harness-subagent-guard.sh" "$TARGET_ABS/scripts/harness-subagent-guard.sh" 0755
+copy_always_update "$PLUGIN_ROOT/scripts/hooks/slice-builder.hooks.json" "$TARGET_ABS/scripts/hooks/slice-builder.hooks.json" 0644
+copy_always_update "$PLUGIN_ROOT/scripts/hooks/staff-gatekeeper.hooks.json" "$TARGET_ABS/scripts/hooks/staff-gatekeeper.hooks.json" 0644
 copy_if_needed "$REF_DIR/context-brief-template.md" "$TARGET_ABS/.artifacts/context-brief.md" 0644
 copy_if_needed "$REF_DIR/spec-template.md" "$TARGET_ABS/.artifacts/SPEC.md" 0644
 copy_if_needed "$REF_DIR/constraints-template.md" "$TARGET_ABS/.artifacts/CONSTRAINTS.md" 0644
@@ -121,6 +162,30 @@ if (changed) {
 } else {
   process.stderr.write(`SKIP (up-to-date): ${dstPath}\n`);
 }
+EOF
+    return 0
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "$src" "$dst" <<'EOF'
+import json
+import sys
+
+src_path, dst_path = sys.argv[1], sys.argv[2]
+with open(src_path, 'r', encoding='utf-8') as f:
+    tpl = json.load(f)
+with open(dst_path, 'r', encoding='utf-8') as f:
+    cur = json.load(f)
+changed = False
+for k, v in tpl.items():
+    if k not in cur or cur[k] != v:
+        cur[k] = v
+        changed = True
+if changed:
+    with open(dst_path, 'w', encoding='utf-8') as f:
+        json.dump(cur, f, indent=2)
+        f.write('\n')
+    sys.stderr.write(f'MERGED: {dst_path}\n')
+else:
+    sys.stderr.write(f'SKIP (up-to-date): {dst_path}\n')
 EOF
     return 0
   fi
@@ -165,11 +230,13 @@ if [ "$WITH_LOCAL_AGENTS" = "true" ] || [ -d "$TARGET_ABS/.agents/agents" ]; the
       echo "REMOVED (retired agent): $TARGET_ABS/.agents/agents/$retired_agent" >&2
     fi
   done
+  TMP_AGENT_FILE="$(mktemp "${TMPDIR:-/tmp}/agy-agent.XXXXXX")"
   for agent_file in "$PLUGIN_ROOT"/agents/*.md; do
     [ -f "$agent_file" ] || continue
     base_name="$(basename "$agent_file")"
     if [ "$WITH_LOCAL_AGENTS" = "true" ] || [ -f "$TARGET_ABS/.agents/agents/$base_name" ]; then
-      copy_always_update "$agent_file" "$TARGET_ABS/.agents/agents/$base_name" 0644
+      render_local_agent "$agent_file" "$TMP_AGENT_FILE"
+      copy_always_update "$TMP_AGENT_FILE" "$TARGET_ABS/.agents/agents/$base_name" 0644
     fi
   done
 fi

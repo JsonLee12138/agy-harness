@@ -1,7 +1,7 @@
 {
   "name": "agy-harness",
   "displayName": "AGY Harness",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity, bundling 25 upstream lifecycle skills, /agy-harness:harness-init, dual Software 1.0 gates, and 3 lean physically isolated subagents.",
   "logo": "assets/logo.svg",
   "author": {

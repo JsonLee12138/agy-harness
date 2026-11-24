@@ -30,12 +30,12 @@
     {
       "id": 1,
       "prompt": "Bootstrap AGY Harness in this repository without overwriting any existing contract files, then verify the Software 1.0 gate runs cleanly.",
-      "expected_output": "Scaffolded .agents/rules/agy-harness.md (with trigger: always_on), .agents/hooks.json, executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, and scripts/harness-source-edit-guard.sh, plus .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
+      "expected_output": "Scaffolded slim .agents/rules/agy-harness.md (trigger: always_on, <= 3.5 KB), .agents/hooks.json (all 3 hook groups), executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, scripts/harness-lifecycle-hook.sh, and scripts/harness-subagent-guard.sh, scripts/hooks/{slice-builder,staff-gatekeeper}.hooks.json, plus .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
       "files": [
         "harness-init"
       ],
       "expectations": [
-        "Creates .agents/rules/agy-harness.md (with trigger: always_on), .agents/hooks.json, scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, and the four .artifacts/ contract templates",
+        "Creates slim .agents/rules/agy-harness.md (trigger: always_on, <= 4096 bytes), .agents/hooks.json with all 3 hook groups, executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, scripts/harness-lifecycle-hook.sh, scripts/harness-subagent-guard.sh, scripts/hooks/slice-builder.hooks.json, scripts/hooks/staff-gatekeeper.hooks.json, and the four .artifacts/ contract templates",
         "Does not pass --force when preserving existing non-empty contract files",
         "Runs bash scripts/gate-check.sh and verifies ALL SOFTWARE 1.0 GATES PASSED"
       ]

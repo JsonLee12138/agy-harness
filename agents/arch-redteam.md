@@ -6,6 +6,7 @@ subagent: true
 model: inherit
 commandExecutionPolicy: off
 tools:
+  - read_file
   - view_file
   - list_dir
   - grep_search

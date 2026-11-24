@@ -31,12 +31,12 @@ Default AI coding agents take the path of least resistance: single-turn executio
 
 `agy-harness` transforms agent interactions into a deterministic **Disk SSoT (`.artifacts/`) + Software 1.0 Gate (`scripts/gate-check.sh`) + Physically Isolated Fresh-Context Subagent** state machine:
 
-- **One-step workspace bootstrap (`/agy-harness:harness-init`)**: Registers `.agents/rules/agy-harness.md` (`trigger: always_on` for both IDE & CLI), `.agents/hooks.json` + dual Software 1.0 `PreToolUse` guards (`scripts/harness-approval-gate.sh` & `scripts/harness-source-edit-guard.sh`), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`.
-- **Alignment-first `Proceed` confirmation gates**: Aligns requirements and core plan with the user first (`1 Proceed` click by default across Tier M/L/XL), runs post-approval `arch-redteam` validation for Tier L/XL (then kills it cleanly, pausing again only when a `[BLOCKER]` alters core scope or public contracts), and lets non-contract guardrails and status updates proceed without re-locking.
+- **One-step bootstrap (`/agy-harness:harness-init`) + Global `hooks.json` fallback**: Registers slim `.agents/rules/agy-harness.md` (`3,484 B` / `<= 3.5 KB` within AGY's `20,000`-token `defaultRulesBudget`), 3-group [`.agents/hooks.json`](.agents/hooks.json) (`harness-contract-approval-gate`, `harness-parent-source-edit-guard`, `harness-lifecycle-guard`), `scripts/gate-check.sh`, and `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`. Plugin-root [`hooks.json`](hooks.json) (`--plugin-mode`) adds global zero-intrusion fallback across repos while yielding lifecycle injection if a workspace already declares `harness-lifecycle-guard`.
+- **Full 3-group Software 1.0 hooks & Orchestrator compatibility**: Gates non-allowlisted `invoke_subagent`, `define_subagent(EnableWriteTools=true)`, `swarm(add)`, and `run_workflow`; keeps Orchestrator `exit_plan_mode` lightweight (no prose `deny`, `force_ask` only when unstopped plans use `>= 5` non-`isTierXsExemptPath` code paths or `Tier M/L/XL`); expands edit-tool matchers with `sed_file`; removes `INACTIVE` cumulative `git status` dirty-tree locks; injects deduplicated `PreInvocation` reminders (`INACTIVE_ROUTING_5TIER`); and enforces `Stop` full-gate verification ONLY on non-`isTierXsExemptPath` edits (`workspaceRoot`-scoped).
+- **Alignment-first `Proceed` & Auto-Archive**: Aligns requirements and core plan first (`1 Proceed` click by default), supports post-approval `arch-redteam` validation (then `kill`), exempts checkboxes and `## Implementation Notes / Guardrails`, and auto-archives completed contracts (`<!-- HARNESS_STATUS: ARCHIVED -->`/`DONE` or all-`[x]`) to unlock subsequent `Tier XS` / `Tier S` tasks.
 - **Self-contained `agy-harness:*` namespace**: Ships all 25 upstream skills untouched (ready for seamless upstream `git merge`) plus `harness-init`. Disable standalone `agent-skills` after installing to avoid duplicate skill-catalog token overhead.
-- **Software 1.0 zero-token gates (`scripts/gate-check.sh`)**: Enforces diff size limits (< 400 lines), typecheck/lint, deterministic tests, and secret / `debugger;` scans before waking review subagents.
-- **3 lean physically isolated subagents (`model: inherit`, `mcpServers: []`)**: Native parallel direct discovery (Zero CRG), read-only 4-in-1 `staff-gatekeeper`, and per-slice closed-loop `send_message` reuse followed by `manage_subagents(kill)` before starting the next clean-context slice.
-- **Tier S / M / L / XL budget routing**: Scales from zero-subagent Tier S fixes up to Tier XL parallel worktree sharding (`Workspace: "share"` / Native `Swarm`).
+- **3 lean physically isolated subagents (`model: inherit`, `mcpServers: []`)**: Canonical AGY tools (`read_file`, `write_file`, `edit_file`, `create_file`) + legacy aliases, read-only separation, Agent Frontmatter `hooks:` ([`slice-builder.hooks.json`](scripts/hooks/slice-builder.hooks.json) & [`staff-gatekeeper.hooks.json`](scripts/hooks/staff-gatekeeper.hooks.json) via [`harness-subagent-guard.sh`](scripts/harness-subagent-guard.sh)), CRG coexistence (native direct reads default; honors `.agents/rules/crg.md` when enabled), 4-in-1 `staff-gatekeeper`, and per-slice `send_message` reuse + `manage_subagents(kill)` teardown.
+- **5-Tier (`Tier XS / S / M / L / XL`) Epistemic × Blast-Radius routing**: Scales from zero-`.artifacts/` `Tier XS` deterministic chores (`Stop` full-gate exempt) and root-cause + `RED -> GREEN` TDD `Tier S` fixes up to `Tier XL` parallel worktree sharding (`Workspace: "share"` / Native `Swarm`).
 
 ```
   DEFINE          PLAN           BUILD          VERIFY         REVIEW          SHIP
@@ -47,7 +47,7 @@ Default AI coding agents take the path of least resistance: single-turn executio
   /spec          /plan          /build        /test         /review       /ship
 ```
 
-For complete architectural details and golden evaluation instructions, see **[docs/antigravity-setup.md](docs/antigravity-setup.md)**.
+For complete architectural details, `Permissions` layering, `agy plugin validate` notes, and golden evaluation instructions, see **[docs/antigravity-setup.md](docs/antigravity-setup.md)** and **[docs/agents.md](docs/agents.md)**.
 
 ---
 
@@ -151,40 +151,45 @@ Or run the initialization script directly from terminal:
 # Using installed plugin:
 bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-project
 
-# Or with local subagents:
+# Or with local subagents (rewrites ../scripts/hooks/ -> ../../scripts/hooks/ in .agents/agents/*.md):
 bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
 
-This sets up (and upgrades harness rules, hooks, guards, and any local `.agents/agents/` in-place on future runs):
-1. `.agents/rules/agy-harness.md` — `trigger: always_on` coordinator rule with Tier S/M/L/XL routing, Zero-CRG native discovery, per-slice closed-loop lifecycles, and human approval gates.
-2. `.agents/hooks.json` + `scripts/harness-approval-gate.sh` + `scripts/harness-source-edit-guard.sh` — Dual Software 1.0 `PreToolUse` locks blocking unconfirmed execution and parent source edits outside unactivated Tier S.
+This sets up (and upgrades rules, hook configs, guard scripts, and existing `.agents/agents/` in-place on future runs without wiping active `.artifacts/`):
+1. `.agents/rules/agy-harness.md` (`3,484 B`, `<= 3.5 KB` / `4,096 B` cap) — slim `trigger: always_on` coordinator rule covering 5-tier (`Tier XS` / `Tier S` / `Tier M` / `Tier L` / `Tier XL`) routing, Orchestrator Plan Mode (`exit_plan_mode`), CRG coexistence (native direct reads default; honors `.agents/rules/crg.md` if enabled), auto-archive unlock, and `Proceed` gates.
+2. `.agents/hooks.json` + `scripts/harness-{approval-gate,source-edit-guard,lifecycle-hook,subagent-guard}.sh` + `scripts/hooks/{slice-builder,staff-gatekeeper}.hooks.json` — full 3-group Software 1.0 lifecycle enforcement (`harness-contract-approval-gate`, `harness-parent-source-edit-guard` with `sed_file` parity, `INACTIVE` dirty-tree unlock & `run_command` shell write-bypass protection, and `harness-lifecycle-guard` with `isTierXsExemptPath` `Stop` differentiation), mirroring plugin-root [`hooks.json`](hooks.json) (`--plugin-mode`).
 3. `scripts/gate-check.sh` — Zero-token pre-commit quality gate.
 4. `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md` — Local gitignored contract templates.
 
+> [!TIP]
+> - **Native `Permissions` + Hooks Layering**: Pair Antigravity native static `Permissions` (`Deny > Ask > Allow`, e.g., denying `.env*` reads/writes or guarding `git push --force`) with `agy-harness` Hooks for dynamic `.artifacts/` contract approval, `INACTIVE` dirty-tree unlock with `isTierXsExemptPath` `Stop` gate differentiation, and lifecycle enforcement.
+> - **`agy plugin validate .` Behavior**: Passes with `0` errors (`skills 26 · agents 3 · rules 1 · hooks 3 · mcpServers 0 · sidecars 0`), emitting 2 expected informational warnings on root `AGENTS.md` and `commands/` (kept for Claude Code / Gemini CLI / Codex / OpenCode parity and CI `validate-commands.js`).
+
 ---
 
-## Tier S / M / L / XL Budget Routing
+## 5-Tier (`Tier XS / S / M / L / XL`) Budget Routing
 
 `agy-harness` routes every task to the optimal balance between token expenditure and verification rigor:
 
-| Tier | Scope | Pipeline & Human Checkpoints | Cost Multiplier |
-|------|-------|------------------------------|-----------------|
-| **Tier S** | `<= 3` files (incl. tests), `<= 150` lines, low risk (`.artifacts/` unactivated) | Main session TDD -> `gate-check.sh` -> Done (0 subagents, 0 prompts) | **1.0x** |
-| **Tier M** | Standard feature or refactor | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `slice-builder` (`send_message` closed loop) -> `gate-check.sh` -> on-demand 4-in-1 `staff-gatekeeper` -> `kill` | **1.3x - 1.6x** |
-| **Tier L** | Architecture change, public API, auth/payment | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`, then `kill`) -> per-slice closed loop (`slice-builder` -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` on `GO`) | **2.0x - 2.4x** |
-| **Tier XL** | `>= 3` orthogonal modules with disjoint trees | Native parallel read (Zero CRG) -> **`Proceed` #1** -> `arch-redteam` (then `kill`) -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` | **2.0x - 2.8x** |
+| Tier | Scope & Hard Disqualifiers | Pipeline & Human Checkpoints | Cost Multiplier |
+|------|----------------------------|------------------------------|-----------------|
+| **Tier XS** | Doc/prose, version/plugin manifests, lockfiles, repo metadata (`CODEOWNERS`, `LICENSE`, `.gitignore`), static media/fonts, literal tweaks (no file-count cap; **hard `XS -> S`**: control flow/regex/`agents/`/`skills/`/`commands/` or error debug forbids `XS`) | Direct edit -> lightweight check (0 `.artifacts/`, 0 prompts, 0 subagents; `isTierXsExemptPath` exempts `Stop` full `gate-check.sh` loop) | **0.8x - 1.0x** |
+| **Tier S** | `<= 3` files (incl. tests), `<= 150` lines, local bug/logic with intact external contract (`.artifacts/` inactive or archived/all-`[x]`; **hard `S -> M`**: `> 3` code files, API change, or design fork -> `Tier M`) | Root-cause diagnosis (`agy-harness:debugging-and-error-recovery`) -> direct TDD (`agy-harness:test-driven-development`: `RED -> GREEN`) -> full `gate-check.sh` enforced by `Stop` hook (0 `.artifacts/`, 0 subagents, 0 prompts) | **1.0x** |
+| **Tier M** | Standard feature or refactor | Native direct reads (CRG if enabled) -> **`Proceed` #1** -> `slice-builder` (`send_message` closed loop) -> `gate-check.sh` -> on-demand 4-in-1 `staff-gatekeeper` -> `kill` | **1.3x - 1.6x** |
+| **Tier L** | Architecture change, public API, auth/payment | Native direct reads (CRG if enabled) -> **`Proceed` #1** -> `arch-redteam` (2nd `Proceed` only on `[BLOCKER]`, then `kill`) -> per-slice closed loop (`slice-builder` -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` on `GO`) | **2.0x - 2.4x** |
+| **Tier XL** | `>= 3` orthogonal modules with disjoint trees | Native direct reads (CRG if enabled) -> **`Proceed` #1** -> `arch-redteam` (then `kill`) -> Parallel `slice-builder` (`Workspace: "share"`) -> `gate-check.sh` -> 4-in-1 `staff-gatekeeper` -> `kill` | **2.0x - 2.8x** |
 
 ---
 
 ## Harness Subagents
 
-Three lean physically isolated subagents (`model: inherit`, `mcpServers: []`) orchestrated in per-slice closed loops by `.agents/rules/agy-harness.md`:
+Three lean physically isolated subagents (`model: inherit`, `mcpServers: []`) declaring canonical AGY tools (`read_file`, `write_file`, `edit_file`, `create_file`) alongside legacy aliases, orchestrated in per-slice closed loops by `.agents/rules/agy-harness.md`:
 
-| Subagent | Model & MCP | Tools & Isolation | Role |
-|----------|-------------|-------------------|------|
-| [arch-redteam](agents/arch-redteam.md) | `inherit` (`mcpServers: []`) | Read-only (`off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails (killed right after logging Guardrails) |
-| [slice-builder](agents/slice-builder.md) | `inherit` (`mcpServers: []`) | Read + Write (`sandbox`) | Cohesive TDD builder; supports `gate-check.sh --fast`, per-slice `send_message` resume, `[HOST_CMD_REQUEST]`, and worktree sharding |
-| [staff-gatekeeper](agents/staff-gatekeeper.md) | `inherit` (`mcpServers: []`) | Read-only (`sandbox`) | **4-in-1** unified post-gate reviewer: five-axis quality, complexity pruning, anti-fake-test check, and security/performance audit |
+| Subagent | Model & MCP | Tools, Frontmatter `hooks:` & Isolation | Role |
+|----------|-------------|----------------------------------------|------|
+| [arch-redteam](agents/arch-redteam.md) | `inherit` (`mcpServers: []`) | **Read-only** (`read_file`, legacy read tools; `policy: off`) | Blank-context adversarial auditor for `SPEC.md` and `PLAN.md` with anti-overengineering guardrails (killed right after logging Guardrails) |
+| [slice-builder](agents/slice-builder.md) | `inherit` (`mcpServers: []`) | Read + Write (`read_file`, `write_file`, `edit_file`, `create_file` + legacy aliases; `sandbox`) + [`slice-builder.hooks.json`](scripts/hooks/slice-builder.hooks.json) | Cohesive TDD builder; physically locked from `.artifacts/{SPEC,CONSTRAINTS,PLAN}.md` (and `.agents/*`/`scripts/harness-*.sh` in target repos, with `plugin.json` `name: "agy-harness"` self-hosting exception) and blacklisted/slow commands via [`harness-subagent-guard.sh`](scripts/harness-subagent-guard.sh) |
+| [staff-gatekeeper](agents/staff-gatekeeper.md) | `inherit` (`mcpServers: []`) | **Read-only** (`read_file`, legacy read tools, `run_command`; `sandbox`) + [`staff-gatekeeper.hooks.json`](scripts/hooks/staff-gatekeeper.hooks.json) | **4-in-1** unified post-gate reviewer: five-axis quality, complexity pruning, anti-fake-test check, and security/performance audit; `run_command` restricted to short read-only checks |
 
 > Legacy single-axis and retired personas (`repo-scout`, `risk-specialist`, etc.) are safely preserved in [docs/legacy-personas/](docs/legacy-personas/).
 

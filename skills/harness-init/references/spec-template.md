@@ -4,7 +4,7 @@
 
 ## 1. Objective & Problem Statement
 - **Goal:** _Describe the concrete user or system problem being solved._
-- **Tier Classification:** `Tier S | Tier M | Tier L | Tier XL`
+- **Tier Classification:** `Tier M | Tier L | Tier XL (escalated Tier S optional)`
 
 ## 2. Non-Goals (Scope Guardrails)
 - _Explicitly list what is out of scope to prevent over-engineering._

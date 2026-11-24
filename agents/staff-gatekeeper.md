@@ -6,11 +6,14 @@ subagent: true
 model: inherit
 commandExecutionPolicy: sandbox
 tools:
+  - read_file
   - view_file
   - list_dir
   - grep_search
   - find_by_name
   - run_command
+hooks:
+  - ../scripts/hooks/staff-gatekeeper.hooks.json
 mcpServers: []
 skills:
   - agy-harness:code-review-and-quality

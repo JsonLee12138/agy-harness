@@ -31,12 +31,12 @@
 
 `agy-harness` 将随意散漫的生成式会话，彻底重构为严密的 **磁盘单一事实来源（Disk SSoT: `.artifacts/`） + Software 1.0 确定性门禁（`scripts/gate-check.sh`） + 物理隔离的空白上下文子代理（Subagents）** 确定性状态机：
 
-- **一键项目脚手架注入 (`/agy-harness:harness-init`)**：一键注入带 `trigger: always_on`（IDE 与 CLI 均自动加载）的协调者规则 `.agents/rules/agy-harness.md`、双重物理门禁 `.agents/hooks.json`（`scripts/harness-approval-gate.sh` + `scripts/harness-source-edit-guard.sh`）、零 Token 门禁脚本 `scripts/gate-check.sh` 以及本地契约模板 `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`。
-- **先对齐后校验的原生 `Proceed` 门禁**：Tier M/L/XL 默认先就需求与核心方案对齐确认 **1 次 `Proceed`**，确认后再按风险触发 `arch-redteam` 校验（落地后立刻 `kill` 清场，仅发现必须改范围/契约的 `[BLOCKER]` 才二次比对确认）；进度勾选与 `## Implementation Notes / Guardrails` 非契约备注免重锁。
-- **独立命名空间 `agy-harness:*` 与上游无缝同步**：完整保留上游 25 个生命周期技能，不改动任何一行上游逻辑，随时可接收上游 `git merge` 更新。安装后仅需禁用独立的 `agent-skills` 插件，即可规避重复注册导致的上下文 Token 浪费。
-- **Software 1.0 零 Token 确定性门禁 (`scripts/gate-check.sh`)**：在唤醒审校子代理前，先通过本地脚本执行代码行数审查（< 400 行）、类型与代码格式检查、确定性单元测试以及密钥和 `debugger;` 扫描，绝不在坏代码上白花审查 Token。
-- **3 大精简核心隔离子代理（`model: inherit`, `mcpServers: []`）**：Turn 1 原生并行直读（零 CRG 索引税）、4 合 1 `staff-gatekeeper`，以及“按 Slice 闭环 `send_message` 原地复用 → 彻底 `GO` 后 `kill` 清场开启下一 Slice”生命周期。
-- **Tier S / M / L / XL 预算自适应路由**：从单文件零子代理极速修复（Tier S），平滑扩展至多工作区并行切片开发（Tier XL）。
+- **一键脚手架注入 (`/agy-harness:harness-init`) + 插件根 `hooks.json` 全局兜底**：注入瘦身至 **`3,484 B`（`<= 3.5 KB`）** 的协调者规则 `.agents/rules/agy-harness.md`（远低于 AGY `20,000` Token 的 `defaultRulesBudget`，避免降级为路径指针）、三组钩子 [`.agents/hooks.json`](.agents/hooks.json)、`scripts/gate-check.sh` 与本地契约 `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md`；插件根 [`hooks.json`](hooks.json)（`--plugin-mode`）对未初始化仓库保持零侵入放行，并在工作区已注册 `harness-lifecycle-guard` 时自动让渡防重复注入。
+- **三组物理门禁与 Orchestrator Plan Mode 适配**：`harness-contract-approval-gate` 仅白名单放行只读子代理并拦截 `define_subagent`/`run_workflow`/`swarm(add)` 与必要场景的 `exit_plan_mode`（无契约计划仅在未停轮且涉及 `>= 5` 个非 `isTierXsExemptPath` 代码路径或 `Tier M/L/XL` 时提示确认）；`harness-parent-source-edit-guard` 补齐 `sed_file` 匹配、`INACTIVE` 状态立即解锁脏工作树（不再因 `git status` 累计锁定 `XS/S`），并在契约激活时通过 2 条确定性规则识别 `isParent` 及拦截 `run_command` Shell 写绕过；`harness-lifecycle-guard` 提供 `PreInvocation` 去重 5 级分流提示（`INACTIVE_ROUTING_5TIER`）、`PostToolUse` 门禁追踪与基于 `isTierXsExemptPath` 的差异化 `Stop` 强收口校验。
+- **先对齐后校验、自动归档解禁 `Tier XS` / `Tier S`**：Tier M/L/XL 默认先对齐并确认 **1 次 `Proceed`**，高风险触发 `arch-redteam` 后即刻 `kill`；进度勾选与 `## Implementation Notes / Guardrails` 免重锁；出现 `<!-- HARNESS_STATUS: ARCHIVED -->`/`DONE` 或 `SPEC.md` + `PLAN.md` 全部 `[x]` 时自动归档并释放后续 `Tier XS` / `Tier S` 任务。
+- **独立命名空间 `agy-harness:*` 与上游无缝同步**：完整保留上游 25 个生命周期技能，不改动任何一行上游逻辑，安装后禁用原版 `agent-skills` 即可消除重复 Token 开销。
+- **3 大精简隔离子代理（`model: inherit`, `mcpServers: []`）**：补齐新版 canonical 工具名（`read_file`、`write_file`、`edit_file`、`create_file`）与只读隔离；挂载 Agent Frontmatter `hooks:`（[`slice-builder.hooks.json`](scripts/hooks/slice-builder.hooks.json) 与 [`staff-gatekeeper.hooks.json`](scripts/hooks/staff-gatekeeper.hooks.json) -> [`harness-subagent-guard.sh`](scripts/harness-subagent-guard.sh)）；默认原生直读且与 `.agents/rules/crg.md` 共存；按 Slice 闭环 `send_message` 原地复用后 `kill` 清场。
+- **五级（`Tier XS / S / M / L / XL`）认知×影响面路由**：从零契约 `Tier XS` 确定性杂务（豁免 `Stop` 全量 `gate-check.sh`）与“先查根因 + `RED -> GREEN` TDD”的 `Tier S` 局部修复，平滑扩展至多工作区并行切片开发（`Tier XL`）。
 
 ```
   定义 (DEFINE)     规划 (PLAN)     构建 (BUILD)    验证 (VERIFY)   评审 (REVIEW)    发布 (SHIP)
@@ -47,7 +47,7 @@
      /spec             /plan            /build           /test           /review          /ship
 ```
 
-关于完整的 Antigravity 安装指南、配置与黄金评测集，请参阅 **[docs/antigravity-setup.md](docs/antigravity-setup.md)**。
+完整 Antigravity 安装架构、原生 `Permissions` 分层治理、`agy plugin validate` 说明与黄金评测指南，请参阅 **[docs/antigravity-setup.md](docs/antigravity-setup.md)** 与 **[docs/agents.md](docs/agents.md)**。
 
 ---
 
@@ -151,40 +151,45 @@ npx skills add JsonLee12138/agy-harness --list     # 安装前查看列表
 # 全局已安装 agy-harness 插件时：
 bash ~/.gemini/config/plugins/agy-harness/scripts/init-harness.sh /path/to/your-project
 
-# 或使用包含独立本地子代理的模式：
+# 或使用包含独立本地子代理的模式（自动将 .agents/agents/*.md 中的 ../scripts/hooks/ 改写为 ../../scripts/hooks/）：
 bash /path/to/agy-harness/scripts/init-harness.sh /path/to/your-project --with-local-agents
 ```
 
-该命令将在目标工程自动生成以下关键基础设施（再次执行无需 `--force` 即可原地自动升级规则、双钩子与本地代理文件）：
-1. `.agents/rules/agy-harness.md` — 带 `trigger: always_on` 的工作区协调状态机规则，负责原生检索、Tier S/M/L/XL 路由、按 Slice 闭环与 `Proceed` 检查点；
-2. `.agents/hooks.json` + `scripts/harness-approval-gate.sh` + `scripts/harness-source-edit-guard.sh` — Software 1.0 双重物理门禁：未获人类批准前阻断执行，且契约激活或超 `Tier S` 时阻止主会话直改源码；
+该命令将在目标工程自动生成并原地升级以下基础设施（再次执行无需 `--force` 即可更新规则、全部钩子脚本与本地代理，同时保留既有 `.artifacts/` 契约与自定义 `gate-check.sh`）：
+1. `.agents/rules/agy-harness.md`（`3,484 B`，`<= 3.5 KB` / 上限 `4,096 B`）— 瘦身版 `trigger: always_on` 协调者规则，涵盖五级（`Tier XS` / `Tier S` / `Tier M` / `Tier L` / `Tier XL`）路由、Orchestrator Plan Mode（`exit_plan_mode`）协同、CRG 共存（默认原生直读；开启 `.agents/rules/crg.md` 时按规则启用）、自动归档解禁与 `Proceed` 检查点；
+2. `.agents/hooks.json` + `scripts/harness-{approval-gate,source-edit-guard,lifecycle-hook,subagent-guard}.sh` + `scripts/hooks/{slice-builder,staff-gatekeeper}.hooks.json` — 完整三组 Software 1.0 生命周期与物理隔离守卫（覆盖 `sed_file` 匹配、`INACTIVE` 脏树解禁与 `isTierXsExemptPath` 差异化 `Stop` 门禁，无全局插件的离线仓库亦与根 `hooks.json` 同等生效）；
 3. `scripts/gate-check.sh` — Software 1.0 零 Token 确定性质量门禁；
 4. `.artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md` — 磁盘单一事实契约模板（自动加入 `.gitignore`，不污染代码历史与门禁统计）。
 
+> [!TIP]
+> - **原生 `Permissions` 与 Hooks 分层治理**：建议将 AGY 原生静态 `Permissions`（`Deny > Ask > Allow`，如禁止读写 `.env*` 凭据文件、拦截 `git push --force`）与 `agy-harness` 动态 Hooks（`.artifacts/` 契约状态、`INACTIVE` 脏树解禁配合 `isTierXsExemptPath` `Stop` 差异化门禁、`PreInvocation` 5 级分流及子代理隔离）搭配使用。
+> - **`agy plugin validate .` 说明**：校验以 **`0` errors** 通过（`skills 26 · agents 3 · rules 1 · hooks 3 · mcpServers 0 · sidecars 0`）；根目录 `AGENTS.md` 与 `commands/` 会触发 2 条已知多宿主提示警告，因需保持对 Claude Code / Gemini CLI / Codex / OpenCode 及 CI `validate-commands.js` 的兼容而刻意保留。
+
 ---
 
-## 任务预算等级体系 (Tier S / M / L / XL)
+## 五级任务预算路由体系 (`Tier XS / S / M / L / XL`)
 
-为了兼顾开发效率与推理成本，`agy-harness` 预设了四级严格的预算与路由矩阵：
+为了兼顾开发效率、认知边界与推理成本，`agy-harness` 预设了五级预算与路由矩阵：
 
-| 任务等级 (Tier) | 适用范围与特征 | 执行流水线与人类检查点 | 预估 Token 消耗倍数 |
-|----------------|---------------|----------------------|--------------------|
-| **Tier S** | `<= 3` 文件（含测试）、`<= 150` 行、无高敏/接口破坏（`.artifacts/` 未激活） | 主会话直接执行 TDD 修复 -> 运行 `scripts/gate-check.sh` -> 交付（0 契约文档，0 子代理） | **1.0x**（基准） |
-| **Tier M** | 常规跨文件特性开发或业务逻辑重构 | 原生并行直读（无 CRG）-> **人类点击 `Proceed` #1（确认需求与方案一致）** -> 内聚 `slice-builder`（`send_message` 原地闭环）-> 运行 `gate-check.sh` -> 大改动按需唤醒 4 合 1 `staff-gatekeeper` -> `kill` 清场 | **1.3x - 1.6x** |
-| **Tier L** | 核心架构重构、公共 API 变更、涉及鉴权/支付等高危路径 | 原生并行直读（无 CRG）-> **人类点击 `Proceed` #1（确认需求与方案一致）** -> `arch-redteam` 校验（落地后立即 `kill`；仅 `[BLOCKER]` 二次确认）-> 按 Slice 闭环（`slice-builder` -> `gate-check.sh` -> 4 合 1 `staff-gatekeeper` -> `GO` 后 `kill`） | **2.0x - 2.4x** |
-| **Tier XL** | 包含 >= 3 个独立且互不干涉模块的大型史诗任务 | 原生并行直读（无 CRG）-> **人类 `Proceed` #1（确认需求与模块边界）** -> `arch-redteam` 校验（后立即 `kill`）-> 并行 `slice-builder`（`Workspace: "share"`）-> 运行 `gate-check.sh` -> 4 合 1 `staff-gatekeeper` 验收 -> `kill` 清场 | **2.0x - 2.8x** |
+| 任务等级 (Tier) | 适用范围与强升级红线 | 执行流水线与人类检查点 | 预估 Token 消耗倍数 |
+|----------------|---------------------|----------------------|--------------------|
+| **Tier XS** | 确定性微操作：文档/注释、版本与插件清单（`plugin.json`/`marketplace.json`/`VERSION`）、锁文件、仓库元数据（`CODEOWNERS`/`LICENSE`/`.gitignore`）、静态媒体字体、格式与字面微调（不限文件数；**红线 `XS -> S`**：触及可执行控制流、正则、`agents/`/`skills/`/`commands/` 或报错排障严禁定级 `XS`） | 直接编辑 -> 轻量校验（0 `.artifacts/`、0 人类确认、0 子代理；`isTierXsExemptPath` 豁免 `Stop` 全量 `gate-check.sh` 死循环） | **0.8x - 1.0x** |
+| **Tier S** | 局部 Bug 修复或小逻辑：`<= 3` 文件（含测试）、`<= 150` 行、外契约不变（`.artifacts/` 未激活或已归档/全 `[x]`；**红线 `S -> M`**：`> 3` 源码文件、改公共 API 或方案二选一分歧时升 `Tier M`） | **先查根因**（`agy-harness:debugging-and-error-recovery`）-> 原位 TDD（`agy-harness:test-driven-development`：复现红灯 `RED -> GREEN`）-> `Stop` 钩子强保运行全量 `scripts/gate-check.sh` -> 交付（0 `.artifacts/`，0 子代理，0 确认） | **1.0x**（基准） |
+| **Tier M** | 常规跨文件特性开发或业务逻辑重构 | 原生直读（若启用 `.agents/rules/crg.md` 则兼容 CRG）-> **人类点击 `Proceed` #1（确认需求与方案一致）** -> 内聚 `slice-builder`（`send_message` 原地闭环）-> 运行 `gate-check.sh` -> 大改动按需唤醒 4 合 1 `staff-gatekeeper` -> `kill` 清场 | **1.3x - 1.6x** |
+| **Tier L** | 核心架构重构、公共 API 变更、涉及鉴权/支付等高危路径 | 原生直读（兼容 CRG 共存）-> **人类点击 `Proceed` #1（确认需求与方案一致）** -> `arch-redteam` 校验（落地后立即 `kill`；仅 `[BLOCKER]` 二次确认）-> 按 Slice 闭环（`slice-builder` -> `gate-check.sh` -> 4 合 1 `staff-gatekeeper` -> `GO` 后 `kill`） | **2.0x - 2.4x** |
+| **Tier XL** | 包含 >= 3 个独立且互不干涉模块的大型史诗任务 | 原生直读（兼容 CRG 共存）-> **人类 `Proceed` #1（确认需求与模块边界）** -> `arch-redteam` 校验（后立即 `kill`）-> 并行 `slice-builder`（`Workspace: "share"`）-> 运行 `gate-check.sh` -> 4 合 1 `staff-gatekeeper` 验收 -> `kill` 清场 | **2.0x - 2.8x** |
 
 ---
 
 ## 三大精简核心隔离子代理 (Harness Subagents)
 
-全员采用 **`model: inherit` + `mcpServers: []`**，按“单个 Slice 闭环常驻复用 → 彻底 `GO` 后清场销毁”运行：
+全员采用 **`model: inherit` + `mcpServers: []`**，补齐新版 canonical 工具名（`read_file`、`write_file`、`edit_file`、`create_file`）并保留旧别名，按“单个 Slice 闭环常驻复用 → 彻底 `GO` 后清场销毁”运行：
 
-| 子代理 | 模型与 MCP | 工具权限与隔离机制 | 职责与产出物 |
-|--------|------------|-------------------|--------------|
-| [arch-redteam](agents/arch-redteam.md) | `inherit` (`mcpServers: []`) | 只读工具集（无文件写权限，`policy: off`） | 架构与方案红队审校官。在方案对齐后执行对抗校验，拦截过度设计与隐含假设，落地后即被 `kill` |
-| [slice-builder](agents/slice-builder.md) | `inherit` (`mcpServers: []`) | 完整读写沙箱（`policy: sandbox`） | 垂直切片 TDD 施工员。支持 `gate-check.sh --fast`、Slice 闭环内 `send_message` 原地返工及 `[HOST_CMD_REQUEST]` |
-| [staff-gatekeeper](agents/staff-gatekeeper.md) | `inherit` (`mcpServers: []`) | 只读工具集（`policy: sandbox`） | **4 合 1** 统一门禁审校官：一次性完成五轴质量审查、复杂度修剪、假测试变异检查及安全/性能风险审计 |
+| 子代理 | 模型与 MCP | 工具权限、Frontmatter `hooks:` 与隔离机制 | 职责与产出物 |
+|--------|------------|----------------------------------------|--------------|
+| [arch-redteam](agents/arch-redteam.md) | `inherit` (`mcpServers: []`) | 只读工具集（`read_file` 及旧只读别名；无任何写工具，`policy: off`） | 架构与方案红队审校官。在方案对齐后执行对抗校验，拦截过度设计与隐含假设，落地后即被 `kill` |
+| [slice-builder](agents/slice-builder.md) | `inherit` (`mcpServers: []`) | 完整读写沙箱（`read_file`、`write_file`、`edit_file`、`create_file` + 旧别名，`policy: sandbox`）+ [`slice-builder.hooks.json`](scripts/hooks/slice-builder.hooks.json) | 垂直切片 TDD 施工员；通过 [`harness-subagent-guard.sh`](scripts/harness-subagent-guard.sh) 物理锁死 `.artifacts/{SPEC,CONSTRAINTS,PLAN}.md`（目标仓库同时锁 `.agents/*` 与 `scripts/harness-*.sh`，仅当根目录 `plugin.json` `name: "agy-harness"` 时豁免自宿主施工）并拦截黑名单/守护/慢速命令 |
+| [staff-gatekeeper](agents/staff-gatekeeper.md) | `inherit` (`mcpServers: []`) | 只读工具集（`read_file`、旧只读别名、`run_command`，无写工具，`policy: sandbox`）+ [`staff-gatekeeper.hooks.json`](scripts/hooks/staff-gatekeeper.hooks.json) | **4 合 1** 统一门禁审校官：一次性完成五轴质量审查、复杂度修剪、假测试变异检查及安全/性能风险审计；`run_command` 物理限定为短时只读命令 |
 
 > 注：原版单维度 Persona 以及合并下线的历史角色（[`repo-scout`](docs/legacy-personas/repo-scout.md)、[`risk-specialist`](docs/legacy-personas/risk-specialist.md) 等）已归档至 [docs/legacy-personas/](docs/legacy-personas/)，使 Antigravity `/agents` 列表严格聚焦于上述 3 大核心角色。
 
