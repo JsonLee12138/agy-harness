@@ -1,7 +1,7 @@
 {
   "name": "agy-harness",
-  "version": "0.3.1",
-  "description": "Budget-governed generate-and-falsify engineering harness — covering the full software development lifecycle from spec to ship.",
+  "version": "0.4.0",
+  "description": "Adaptive generate-and-falsify engineering harness — covering the full software development lifecycle from spec to ship.",
   "author": {
     "name": "JsonLee12138"
   },

@@ -46,26 +46,15 @@ Instead, the agent must internally follow this lifecycle:
 
 ### Execution Model
 
-For every request:
+Match skill invocation proportionally to task complexity and risk:
 
-1. Determine if any skill applies (even 1% chance)
-2. Invoke the appropriate skill using the `skill` tool
-3. Follow the skill workflow strictly
-4. Only proceed to implementation after required steps (spec, plan, etc.) are complete
+1. **Trivial changes** (literal/constant/style/copy/1:1 field pass-through with no logic or security risk): apply directly and run a fast verification check.
+2. **Non-trivial bugs, architecture/encapsulation work, or security-sensitive changes**: invoke the matching skills from `skills/<skill-name>/SKILL.md` (starting with root-cause diagnosis or spec/plan) and follow their verification gates before delivery.
 
-### Anti-Rationalization
+### Scope Discipline
 
-The following thoughts are incorrect and must be ignored:
-
-- "This is too small for a skill"
-- "I can just quickly implement this"
-- "I’ll gather context first"
-
-Correct behavior:
-
-- Always check for and use skills first
-
-This ensures OpenCode behaves similarly to Claude Code with full workflow enforcement.
+- Do not force heavy multi-file spec ceremony on trivial literal/copy/style edits.
+- Never skip root-cause diagnosis, pre-confirmation review, or deterministic verification on non-trivial bugs, encapsulation changes, or security-sensitive paths.
 
 ## Orchestration: Personas, Skills, and Commands
 

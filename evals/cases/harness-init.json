@@ -7,7 +7,7 @@
         "top_k": 3
       },
       {
-        "prompt": "Run harness-init to scaffold .agents/rules/agy-harness.md and Disk SSoT templates",
+        "prompt": "Run harness-init to scaffold .agents/rules/agy-harness.md and clean up legacy harness scripts",
         "top_k": 3
       },
       {
@@ -29,13 +29,14 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Bootstrap AGY Harness in this repository without overwriting any existing contract files, then verify the Software 1.0 gate runs cleanly.",
-      "expected_output": "Scaffolded slim .agents/rules/agy-harness.md (trigger: always_on, <= 3.5 KB), .agents/hooks.json (all 3 hook groups), executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, scripts/harness-lifecycle-hook.sh, and scripts/harness-subagent-guard.sh, scripts/hooks/{slice-builder,staff-gatekeeper}.hooks.json, plus .artifacts/{context-brief,SPEC,CONSTRAINTS,PLAN}.md with passing gate-check output.",
+      "prompt": "Bootstrap AGY Harness in this repository in clean-room mode without overwriting existing contract files, clean up any legacy scripts/harness-*.sh clutter, and verify the Software 1.0 gate runs cleanly.",
+      "expected_output": "Scaffolded slim .agents/rules/agy-harness.md (trigger: always_on, <= 3.5 KB), executable polyglot fingerprint-deduped scripts/gate-check.sh, and .artifacts/{SPEC,CONSTRAINTS,PLAN}.md while removing legacy v0.3 scripts/harness-*.sh and scripts/hooks/ clutter (or placing offline hooks under .agents/hooks/ when --standalone is passed).",
       "files": [
         "harness-init"
       ],
       "expectations": [
-        "Creates slim .agents/rules/agy-harness.md (trigger: always_on, <= 4096 bytes), .agents/hooks.json with all 3 hook groups, executable scripts/gate-check.sh, scripts/harness-approval-gate.sh, scripts/harness-source-edit-guard.sh, scripts/harness-lifecycle-hook.sh, scripts/harness-subagent-guard.sh, scripts/hooks/slice-builder.hooks.json, scripts/hooks/staff-gatekeeper.hooks.json, and the four .artifacts/ contract templates",
+        "Creates slim .agents/rules/agy-harness.md (trigger: always_on, <= 4096 bytes), executable scripts/gate-check.sh, and .artifacts/{SPEC,CONSTRAINTS,PLAN}.md",
+        "Cleans up legacy scripts/harness-*.sh, scripts/hooks/, and unfilled .artifacts/context-brief.md in default clean-room mode without deleting custom user hooks or active contracts",
         "Does not pass --force when preserving existing non-empty contract files",
         "Runs bash scripts/gate-check.sh and verifies ALL SOFTWARE 1.0 GATES PASSED"
       ]

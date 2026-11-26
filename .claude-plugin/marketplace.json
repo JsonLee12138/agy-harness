@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "agy-harness",
-  "description": "Budget-governed generate-and-falsify engineering harness — covering the full software development lifecycle from spec to ship.",
+  "description": "Adaptive generate-and-falsify engineering harness — covering the full software development lifecycle from spec to ship.",
   "owner": {
     "name": "JsonLee12138",
     "url": "https://github.com/JsonLee12138"
@@ -9,12 +9,12 @@
   "plugins": [
     {
       "name": "agy-harness",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "source": {
         "source": "github",
         "repo": "JsonLee12138/agy-harness"
       },
-      "description": "Budget-governed generate-and-falsify engineering harness covering spec, plan, build, verify, review, and ship.",
+      "description": "Adaptive generate-and-falsify engineering harness covering spec, plan, build, verify, review, and ship.",
       "homepage": "https://github.com/JsonLee12138/agy-harness",
       "license": "MIT",
       "keywords": ["harness", "skills", "agents", "engineering", "spec", "tdd", "review", "ship"]

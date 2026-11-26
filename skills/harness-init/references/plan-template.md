@@ -1,6 +1,6 @@
 # Implementation Plan & Work Packages (PLAN)
 
-> Executed by `slice-builder` in per-slice closed loops: stay alive via `send_message` across gate fixes and `staff-gatekeeper` rework until `GO`, then `manage_subagents(Action="kill")` before starting a clean-context next slice. For Tier XL parallel execution, each concurrent package MUST own a disjoint file subtree.
+> Warm-cache parent execution is allowed post-`Proceed` for single-thread work. To enforce strict parallel `slice-builder` subtree isolation (`Workspace: "share"`), uncomment `<!-- HARNESS_EXECUTION: SUBAGENT_ONLY -->` below.
 
 ## Slice 1: [Title]
 - **Owned files / subtree:** _e.g. `src/feature/*`, `tests/feature/*`_
@@ -10,5 +10,5 @@
 - **Status:** `[ ] Pending`
 
 ## Implementation Notes / Guardrails
-<!-- non-contract: post-Proceed arch-redteam [RISK-NOTE]s & implementation notes added here do not re-lock execution -->
+<!-- non-contract: pre-Proceed & post-Proceed arch-redteam [RISK-NOTE]s & implementation notes added here do not re-lock execution -->
 - _None yet_

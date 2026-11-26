@@ -6,8 +6,8 @@
   "plugins": [
     {
       "name": "agy-harness",
-      "version": "0.3.1",
-      "description": "Budget-governed generate-and-falsify engineering harness for Google Antigravity with Disk SSoT contracts, Software 1.0 gates, and isolated review subagents.",
+      "version": "0.4.0",
+      "description": "Adaptive generate-and-falsify engineering harness for Google Antigravity with pre-confirmation red-teaming, fingerprint-deduped Software 1.0 gates, and anti-hang subagents.",
       "source": {
         "source": "local",
         "path": "./"

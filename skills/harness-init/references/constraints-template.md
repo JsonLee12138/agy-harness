@@ -1,9 +1,9 @@
 # Project Quality & Anti-Bloat Constraints (CONSTRAINTS)
 
-> Enforced by `scripts/gate-check.sh`, `arch-redteam`, and 4-in-1 `staff-gatekeeper`.
+> Enforced by `scripts/gate-check.sh` (fingerprint-deduplicated), `arch-redteam`, and 4-in-1 `staff-gatekeeper`.
 
 ## 1. Hard Quality Bars (Software 1.0)
-- Diff per vertical slice should stay focused (`<= 400` changed lines recommended).
+- Diff per vertical slice should stay focused (`<= 400` changed lines recommended, lockfiles excluded).
 - Zero new linter/typecheck suppressions (`@ts-ignore`, `eslint-disable`, `# type: ignore`) without documented justification.
 - Zero skipped or tautological mock-only tests; deleting core logic must make a test fail.
 - Zero hardcoded credentials, tokens, or leftover `debugger;` statements.

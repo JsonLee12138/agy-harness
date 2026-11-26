@@ -1,7 +1,7 @@
 {
   "name": "agy-harness",
-  "version": "0.3.1",
-  "description": "Budget-governed generate-and-falsify engineering harness covering the full software development lifecycle from spec to ship.",
+  "version": "0.4.0",
+  "description": "Adaptive generate-and-falsify engineering harness covering the full software development lifecycle from spec to ship.",
   "author": {
     "name": "JsonLee12138",
     "url": "https://github.com/JsonLee12138"
@@ -12,8 +12,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AGY Harness",
-    "shortDescription": "Contract-driven engineering harness: spec, red-team, gate, build, review, ship.",
-    "longDescription": "AGY Harness pairs 25 upstream engineering skills with Disk SSoT contracts, Software 1.0 gates, and physically isolated subagents.",
+    "shortDescription": "Adaptive engineering harness: pre-confirm red-team, deduped gate, anti-hang subagents.",
+    "longDescription": "AGY Harness pairs 25 upstream engineering skills with adaptive 3-mode routing, pre-confirmation arch-redteam, fingerprint-deduped Software 1.0 gates, and clean-room init.",
     "developerName": "JsonLee12138",
     "category": "Productivity",
     "capabilities": [
